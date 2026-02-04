@@ -3,6 +3,7 @@ from typing import Any
 
 class Retriever:
     def __init__(self, store: Any, embedder: Any) -> None:
+        """Initialize retriever dependencies."""
         self.store = store
         self.embedder = embedder
 
@@ -12,6 +13,7 @@ class Retriever:
         filters: dict[str, Any] | None = None,
         limit: int = 10,
     ) -> list[dict[str, Any]]:
+        """Return formatted top-k retrieval results for a user query."""
         query_embedding = self.embedder.embed(query)
         results = self.store.search(query_embedding, filters=filters, limit=limit)
 
@@ -33,4 +35,3 @@ class Retriever:
             )
 
         return formatted_results
-

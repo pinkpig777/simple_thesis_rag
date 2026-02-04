@@ -17,11 +17,13 @@ class AnswerGenerator:
         model: str = "gpt-4o-mini",
         client: "OpenAI | None" = None,
     ) -> None:
+        """Initialize answer generation settings and optional OpenAI client."""
         self.model = model
         self._client = client
 
     @property
     def client(self):
+        """Lazily initialize and return the OpenAI client."""
         if self._client is None:
             from openai import OpenAI
 
@@ -29,6 +31,7 @@ class AnswerGenerator:
         return self._client
 
     def generate(self, query: str, context_chunks: Sequence[dict[str, Any]]) -> str:
+        """Generate a citation-aware answer from retrieved context chunks."""
         if not context_chunks:
             return "I could not find relevant sources to answer that question."
 

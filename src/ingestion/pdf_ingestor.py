@@ -12,6 +12,7 @@ def extract_pdf_chunks(
     metadata: dict[str, Any] | None = None,
     chunk_size: int = 500,
 ) -> list[dict[str, Any]]:
+    """Extract text from a PDF and return chunk payloads ready for indexing."""
     if not pdf_path.exists():
         raise FileNotFoundError(f"PDF not found: {pdf_path}")
 
@@ -41,4 +42,3 @@ def extract_pdf_chunks(
                 )
 
     return all_chunks
-

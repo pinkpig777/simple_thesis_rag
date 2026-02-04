@@ -9,6 +9,7 @@ if TYPE_CHECKING:
 
 
 def build_parser() -> argparse.ArgumentParser:
+    """Build and return the CLI argument parser."""
     parser = argparse.ArgumentParser(description="Simple thesis RAG CLI")
     parser.add_argument(
         "--qdrant-path",
@@ -48,6 +49,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _build_pipeline(args: argparse.Namespace) -> "ThesisRAGPipeline":
+    """Create a configured pipeline instance from parsed CLI arguments."""
     from src.pipelines.thesis_rag_pipeline import ThesisRAGPipeline
 
     config = RAGConfig(
@@ -62,6 +64,7 @@ def _build_pipeline(args: argparse.Namespace) -> "ThesisRAGPipeline":
 
 
 def _metadata_from_args(args: argparse.Namespace) -> dict[str, Any] | None:
+    """Map optional metadata flags into a metadata dict."""
     metadata: dict[str, Any] = {}
     for key in ("year", "university", "author", "title"):
         value = getattr(args, key, None)
@@ -71,6 +74,7 @@ def _metadata_from_args(args: argparse.Namespace) -> dict[str, Any] | None:
 
 
 def _filters_from_args(args: argparse.Namespace) -> dict[str, Any] | None:
+    """Map optional query filter flags into a filter dict."""
     filters: dict[str, Any] = {}
     if getattr(args, "year_min", None) is not None:
         filters["year_min"] = args.year_min
@@ -84,6 +88,7 @@ def _filters_from_args(args: argparse.Namespace) -> dict[str, Any] | None:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    """Run the CLI and return a process-style exit code."""
     parser = build_parser()
     args = parser.parse_args(argv)
 

@@ -11,6 +11,7 @@ from src.utils.config import RAGConfig
 
 class ThesisRAGPipeline:
     def __init__(self, config: RAGConfig | None = None) -> None:
+        """Wire all core components for ingestion, retrieval, and generation."""
         self.config = config or RAGConfig()
         self.openai_client = None
         self.embedder = OpenAIEmbedder(
@@ -31,6 +32,7 @@ class ThesisRAGPipeline:
         )
 
     def setup_collection(self) -> bool:
+        """Ensure the configured collection exists in Qdrant."""
         return self.store.setup_collection()
 
     def ingest_pdf(
@@ -39,6 +41,7 @@ class ThesisRAGPipeline:
         metadata: dict[str, Any] | None = None,
         chunk_size: int = 500,
     ) -> int:
+        """Extract, embed, and upsert chunks for a single PDF."""
         chunks = extract_pdf_chunks(pdf_path, metadata=metadata, chunk_size=chunk_size)
         return self.store.upsert_chunks(
             chunks,
@@ -47,6 +50,7 @@ class ThesisRAGPipeline:
         )
 
     def ingest_directory(self, directory: Path, pattern: str = "*.pdf") -> tuple[int, int]:
+        """Ingest all matching PDFs in a directory tree and return totals."""
         pdf_files = sorted(directory.glob(pattern))
         total_chunks = 0
         for pdf_file in pdf_files:
@@ -59,11 +63,13 @@ class ThesisRAGPipeline:
         filters: dict[str, Any] | None = None,
         limit: int = 10,
     ) -> list[dict[str, Any]]:
+        """Run semantic retrieval and return formatted matches."""
         return self.retriever.search(query=query, filters=filters, limit=limit)
 
     def generate_answer(
         self, query: str, context_chunks: list[dict[str, Any]], model: str | None = None
     ) -> str:
+        """Generate a final answer from retrieved context chunks."""
         if model:
             self.answer_generator.model = model
         return self.answer_generator.generate(query=query, context_chunks=context_chunks)
@@ -74,6 +80,7 @@ class ThesisRAGPipeline:
         filters: dict[str, Any] | None = None,
         top_k: int = 5,
     ) -> dict[str, Any]:
+        """Run end-to-end question answering and return answer with sources."""
         sources = self.search(question, filters=filters, limit=top_k)
         answer = self.generate_answer(question, sources)
         return {"question": question, "answer": answer, "sources": sources}

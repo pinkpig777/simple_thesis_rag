@@ -4,6 +4,7 @@ from typing import Any
 
 
 def build_document_id(pdf_path: Path) -> str:
+    """Build a deterministic document ID from the PDF filename."""
     return hashlib.md5(pdf_path.name.encode("utf-8")).hexdigest()
 
 
@@ -22,4 +23,3 @@ def extract_simple_metadata(pdf_path: Path) -> dict[str, Any]:
         "author": parts[2] if len(parts) > 2 else "Unknown",
         "title": parts[3] if len(parts) > 3 else filename_stem,
     }
-

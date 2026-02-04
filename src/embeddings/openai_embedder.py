@@ -10,11 +10,13 @@ class OpenAIEmbedder:
         model: str = "text-embedding-3-small",
         client: "OpenAI | None" = None,
     ) -> None:
+        """Initialize embedder settings and optional OpenAI client."""
         self.model = model
         self._client: Any = client
 
     @property
     def client(self):
+        """Lazily initialize and return the OpenAI client."""
         if self._client is None:
             from openai import OpenAI
 
@@ -22,5 +24,6 @@ class OpenAIEmbedder:
         return self._client
 
     def embed(self, text: str) -> list[float]:
+        """Generate an embedding vector for a text input."""
         response = self.client.embeddings.create(model=self.model, input=text)
         return response.data[0].embedding

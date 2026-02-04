@@ -22,6 +22,7 @@ class QdrantStore:
         collection_name: str = "thesis_chunks",
         embedding_dim: int = 1536,
     ) -> None:
+        """Create a Qdrant client in local-path mode or host/port mode."""
         self.is_local = bool(qdrant_path)
         if qdrant_path:
             self.client = QdrantClient(path=qdrant_path)
@@ -31,10 +32,12 @@ class QdrantStore:
         self.embedding_dim = embedding_dim
 
     def collection_exists(self) -> bool:
+        """Return True when the target collection already exists."""
         collections = self.client.get_collections().collections
         return any(collection.name == self.collection_name for collection in collections)
 
     def setup_collection(self) -> bool:
+        """Create the collection and indexes when missing."""
         if self.collection_exists():
             return False
 
@@ -67,6 +70,7 @@ class QdrantStore:
         embedder: Any,
         batch_size: int = 100,
     ) -> int:
+        """Embed and upsert chunk payloads in batches."""
         points: list[PointStruct] = []
         for chunk_index, chunk in enumerate(chunks):
             # Qdrant accepts only integer or UUID point IDs.
@@ -93,6 +97,7 @@ class QdrantStore:
         filters: dict[str, Any] | None = None,
         limit: int = 10,
     ):
+        """Run a vector similarity query with optional metadata filters."""
         query_filter = self._build_filter(filters)
 
         # qdrant-client >= 1.16 uses query_points; older versions use search.
@@ -116,6 +121,7 @@ class QdrantStore:
 
     @staticmethod
     def _build_filter(filters: dict[str, Any] | None) -> Filter | None:
+        """Translate app-level filter dicts into a Qdrant filter object."""
         if not filters:
             return None
 

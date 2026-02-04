@@ -34,3 +34,29 @@ simple_rag/
     ├── integration/
     └── unit/
 ```
+
+## Refactored entrypoints
+
+- `main.py` -> CLI entrypoint
+- `app/cli/main.py` -> command parser and command handlers
+- `src/` -> modular RAG implementation (ingestion, indexing, retrieval, generation, pipeline)
+- `thesis_rag.py` -> backward-compatible facade for older scripts
+
+## Run with uv
+
+```bash
+# Install deps from pyproject.toml
+uv sync
+
+# Setup collection
+uv run python main.py setup
+
+# Ingest one PDF
+uv run python main.py ingest --pdf ./theses/sample.pdf
+
+# Ingest an entire directory
+uv run python main.py ingest-dir --dir ./theses
+
+# Query
+uv run python main.py query --question "What are common machine learning optimization techniques?"
+```

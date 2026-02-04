@@ -32,14 +32,15 @@ data/raw/<work_title>/<file>.pdf
 ```
 
 Chunk text and metadata are stored in Qdrant payloads (including `payload["text"]`).
+Text extraction is performed by MinerU.
 
 ## Metadata Extraction Strategy
 
-Metadata is path-aware and PDF-aware (`src/utils/metadata.py`):
+Metadata is primarily path-aware (`src/utils/metadata.py`):
 
 - Uses folder name as canonical `work_title`.
 - Infers `document_type` from filename (`manuscript`, `published`, `slides`, `readme`, `paper`).
-- Uses PDF fields (`/Title`, `/Author`, `/Subject`, `/CreationDate`) when valid.
+- Supports optional PDF metadata fields (`/Title`, `/Author`, `/Subject`, `/CreationDate`) when provided by an ingestion adapter.
 - Derives `year` from PDF creation date first, then fallback heuristics.
 - Stores `source_path`, `source_folder`, and a path-based `document_id`.
 
@@ -64,7 +65,7 @@ It is not required for `setup`.
 Ingestion workflow:
 
 1. Read PDF file(s).
-2. Extract page text.
+2. Extract page text with MinerU (`src/ingestion/pdf_ingestor.py`).
 3. Chunk text (word-based chunking).
 4. Build metadata and `document_id`.
 5. Call OpenAI embeddings API.
@@ -90,6 +91,12 @@ Generation behavior:
 
 ```bash
 uv sync
+```
+
+If MinerU model download is slow/blocked in your region, set:
+
+```bash
+export MINERU_MODEL_SOURCE=modelscope
 ```
 
 2) Create `.env`:

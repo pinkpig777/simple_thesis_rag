@@ -138,10 +138,16 @@ It is a lightweight ADR-style log for implementation and maintenance alignment.
 - **Why**: Traceability and safer rollback.
 - **Consequence**: More, smaller commits in history.
 
+## DD-020: Migrate PDF extraction from PyPDF2 to MinerU
+
+- **Status**: Accepted
+- **Decision**: Replace PyPDF2 page-text extraction with MinerU CLI parsing and ingest from MinerU `*_content_list.json`.
+- **Why**: Better handling for academic PDFs with formulas, tables, and complex layouts.
+- **Consequence**: Ingestion depends on MinerU runtime/model availability; PDF embedded metadata is no longer read directly via PyPDF2.
+
 ---
 
 ## Open Decisions / Next Candidates
 
 - Add hybrid search (dense + sparse) and/or reranker.
-- Evaluate MinerU migration for richer PDF parsing (layout/equation fidelity).
 - Add automated migration utilities for legacy collections.

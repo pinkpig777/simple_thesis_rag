@@ -88,6 +88,13 @@ Generation behavior:
 
 ## Quickstart (Local Qdrant Mode)
 
+0) Install `uv`
+
+```bash
+# On macOS and Linux.
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
 1) Install dependencies:
 
 ```bash

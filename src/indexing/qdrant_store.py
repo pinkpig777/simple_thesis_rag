@@ -38,31 +38,37 @@ class QdrantStore:
 
     def setup_collection(self) -> bool:
         """Create the collection and indexes when missing."""
-        if self.collection_exists():
-            return False
-
-        self.client.create_collection(
-            collection_name=self.collection_name,
-            vectors_config=VectorParams(size=self.embedding_dim, distance=Distance.COSINE),
-        )
+        created_collection = False
+        if not self.collection_exists():
+            self.client.create_collection(
+                collection_name=self.collection_name,
+                vectors_config=VectorParams(size=self.embedding_dim, distance=Distance.COSINE),
+            )
+            created_collection = True
 
         if not self.is_local:
-            indexes = [
-                ("document_id", "keyword"),
-                ("year", "integer"),
-                ("university", "keyword"),
-                ("author", "text"),
-                ("chunk_type", "keyword"),
-                ("page_number", "integer"),
-            ]
-            for field_name, field_type in indexes:
-                self.client.create_payload_index(
-                    collection_name=self.collection_name,
-                    field_name=field_name,
-                    field_schema=field_type,
-                )
+            self._ensure_payload_indexes()
 
-        return True
+        return created_collection
+
+    def _ensure_payload_indexes(self) -> None:
+        """Ensure payload indexes are present for common metadata filters."""
+        indexes = [
+            ("document_id", "keyword"),
+            ("year", "integer"),
+            ("university", "keyword"),
+            ("author", "keyword"),
+            ("work_title", "text"),
+            ("document_type", "keyword"),
+            ("chunk_type", "keyword"),
+            ("page_number", "integer"),
+        ]
+        for field_name, field_type in indexes:
+            self.client.create_payload_index(
+                collection_name=self.collection_name,
+                field_name=field_name,
+                field_schema=field_type,
+            )
 
     def upsert_chunks(
         self,

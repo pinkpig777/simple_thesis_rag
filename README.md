@@ -47,7 +47,7 @@ Ingestion pipeline (`ingest` / `ingest-dir`):
 1. Read PDFs from disk (`src/pipelines/thesis_rag_pipeline.py` -> `ingest_pdf` / `ingest_directory`).
 2. Extract page text (`src/ingestion/pdf_ingestor.py`).
 3. Chunk text into fixed-size word chunks (`src/chunking/text_chunker.py`).
-4. Build metadata + `document_id` (`src/utils/metadata.py`).
+4. Build metadata from folder path + PDF embedded fields, then create `document_id` (`src/utils/metadata.py`).
 5. **[OpenAI API]** Generate embedding for each chunk (`src/embeddings/openai_embedder.py`).
 6. Upsert chunk vectors + payload into Qdrant (`src/indexing/qdrant_store.py`).
 
@@ -70,6 +70,18 @@ Flow summary:
 PDFs -> extract text -> chunk -> embed -> Qdrant
 Question -> embed -> Qdrant retrieve -> prompt with chunks -> answer
 ```
+
+## Metadata Strategy
+
+Metadata is now path-aware for your dataset layout: `data/raw/<work_title>/<file>.pdf`.
+
+- `work_title`: parent folder name (canonical paper/work title)
+- `document_type`: inferred from filename (`manuscript`, `published`, `slides`, `readme`, `paper`)
+- `title`: built from PDF `/Title` when valid, otherwise from folder/filename + variant suffix
+- `author` and `authors`: parsed from PDF `/Author`
+- `year`: extracted from PDF creation date first, then filename/folder text
+- `source_path` and `source_folder`: traceability back to file location
+- `document_id`: hash of full PDF path (prevents collisions like multiple `Manuscript.pdf`)
 
 ## Run with uv
 

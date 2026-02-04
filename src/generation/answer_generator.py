@@ -8,8 +8,7 @@ if TYPE_CHECKING:
 
 class AnswerGenerator:
     SYSTEM_PROMPT = (
-        "You are a helpful research assistant that answers questions based "
-        "on thesis documents."
+        "You are a helpful research assistant that answers questions based on thesis documents."
     )
 
     def __init__(

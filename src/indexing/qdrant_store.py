@@ -93,10 +93,23 @@ class QdrantStore:
         filters: dict[str, Any] | None = None,
         limit: int = 10,
     ):
+        query_filter = self._build_filter(filters)
+
+        # qdrant-client >= 1.16 uses query_points; older versions use search.
+        if hasattr(self.client, "query_points"):
+            response = self.client.query_points(
+                collection_name=self.collection_name,
+                query=query_vector,
+                query_filter=query_filter,
+                limit=limit,
+                with_payload=True,
+            )
+            return response.points
+
         return self.client.search(
             collection_name=self.collection_name,
             query_vector=query_vector,
-            query_filter=self._build_filter(filters),
+            query_filter=query_filter,
             limit=limit,
             with_payload=True,
         )

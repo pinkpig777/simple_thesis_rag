@@ -10,6 +10,10 @@ if TYPE_CHECKING:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Simple thesis RAG CLI")
+    parser.add_argument(
+        "--qdrant-path",
+        help="Use embedded local Qdrant storage path instead of host/port",
+    )
     parser.add_argument("--qdrant-host", default="localhost")
     parser.add_argument("--qdrant-port", type=int, default=6333)
     parser.add_argument("--collection", default="thesis_chunks")
@@ -47,6 +51,7 @@ def _build_pipeline(args: argparse.Namespace) -> "ThesisRAGPipeline":
     from src.pipelines.thesis_rag_pipeline import ThesisRAGPipeline
 
     config = RAGConfig(
+        qdrant_path=args.qdrant_path,
         qdrant_host=args.qdrant_host,
         qdrant_port=args.qdrant_port,
         collection_name=args.collection,
@@ -124,7 +129,21 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
 
     except Exception as exc:
-        print(f"Error: {exc}")
+        message = str(exc)
+        if "Connection refused" in message:
+            if args.qdrant_path:
+                print(f"Error: Could not open local Qdrant at path: {args.qdrant_path}")
+            else:
+                print(
+                    "Error: Could not connect to Qdrant at "
+                    f"{args.qdrant_host}:{args.qdrant_port}."
+                )
+                print(
+                    "Hint: start Qdrant or use local mode with "
+                    "--qdrant-path ./storage/vectorstore/qdrant"
+                )
+        else:
+            print(f"Error: {exc}")
         return 1
 
     parser.error(f"Unknown command: {args.command}")

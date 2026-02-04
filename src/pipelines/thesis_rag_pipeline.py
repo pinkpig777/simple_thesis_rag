@@ -18,6 +18,7 @@ class ThesisRAGPipeline:
             client=self.openai_client,
         )
         self.store = QdrantStore(
+            qdrant_path=self.config.qdrant_path,
             host=self.config.qdrant_host,
             port=self.config.qdrant_port,
             collection_name=self.config.collection_name,

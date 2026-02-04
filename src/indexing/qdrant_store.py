@@ -1,4 +1,5 @@
 from typing import Any, Sequence
+from uuid import NAMESPACE_URL, uuid5
 
 from qdrant_client import QdrantClient
 from qdrant_client.models import (
@@ -15,12 +16,17 @@ from qdrant_client.models import (
 class QdrantStore:
     def __init__(
         self,
+        qdrant_path: str | None = None,
         host: str = "localhost",
         port: int = 6333,
         collection_name: str = "thesis_chunks",
         embedding_dim: int = 1536,
     ) -> None:
-        self.client = QdrantClient(host=host, port=port)
+        self.is_local = bool(qdrant_path)
+        if qdrant_path:
+            self.client = QdrantClient(path=qdrant_path)
+        else:
+            self.client = QdrantClient(host=host, port=port)
         self.collection_name = collection_name
         self.embedding_dim = embedding_dim
 
@@ -37,20 +43,21 @@ class QdrantStore:
             vectors_config=VectorParams(size=self.embedding_dim, distance=Distance.COSINE),
         )
 
-        indexes = [
-            ("document_id", "keyword"),
-            ("year", "integer"),
-            ("university", "keyword"),
-            ("author", "text"),
-            ("chunk_type", "keyword"),
-            ("page_number", "integer"),
-        ]
-        for field_name, field_type in indexes:
-            self.client.create_payload_index(
-                collection_name=self.collection_name,
-                field_name=field_name,
-                field_schema=field_type,
-            )
+        if not self.is_local:
+            indexes = [
+                ("document_id", "keyword"),
+                ("year", "integer"),
+                ("university", "keyword"),
+                ("author", "text"),
+                ("chunk_type", "keyword"),
+                ("page_number", "integer"),
+            ]
+            for field_name, field_type in indexes:
+                self.client.create_payload_index(
+                    collection_name=self.collection_name,
+                    field_name=field_name,
+                    field_schema=field_type,
+                )
 
         return True
 
@@ -62,7 +69,8 @@ class QdrantStore:
     ) -> int:
         points: list[PointStruct] = []
         for chunk_index, chunk in enumerate(chunks):
-            point_id = f"{chunk['document_id']}_{chunk_index}"
+            # Qdrant accepts only integer or UUID point IDs.
+            point_id = str(uuid5(NAMESPACE_URL, f"{chunk['document_id']}:{chunk_index}"))
             points.append(
                 PointStruct(
                     id=point_id,
@@ -127,4 +135,3 @@ class QdrantStore:
         if not conditions:
             return None
         return Filter(must=conditions)
-

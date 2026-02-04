@@ -48,6 +48,9 @@ simple_rag/
 # Install deps from pyproject.toml
 uv sync
 
+# Option A: run Qdrant server (Docker)
+docker run -p 6333:6333 qdrant/qdrant
+
 # Setup collection
 uv run python main.py setup
 
@@ -59,4 +62,10 @@ uv run python main.py ingest-dir --dir ./theses
 
 # Query
 uv run python main.py query --question "What are common machine learning optimization techniques?"
+```
+
+Or use embedded local mode (no Qdrant server):
+
+```bash
+uv run python main.py --qdrant-path ./storage/vectorstore/qdrant setup
 ```

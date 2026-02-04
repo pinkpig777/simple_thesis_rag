@@ -15,7 +15,7 @@ Primary entrypoints:
 
 Default runtime settings (from `src/utils/config.py`):
 
-- `collection_name`: `thesis_chunks`
+- `collection_name`: `thesis_chunks_v2`
 - `embedding_model`: `text-embedding-3-small`
 - `embedding_dim`: `1536`
 - `chat_model`: `gpt-4o-mini`
@@ -135,15 +135,15 @@ Then run CLI commands without `--qdrant-path`.
 ## Note on Existing Collections
 
 If your current collection was built before metadata redesign, source lines may still
-show generic names (for example `Manuscript`). Re-ingest into a new collection to
-fully use richer metadata:
+show generic names (for example `Manuscript`). The default collection is now
+`thesis_chunks_v2`, so you can re-ingest without passing `--collection`:
 
 ```bash
 uv run --env-file .env python main.py \
   --qdrant-path ./storage/vectorstore/qdrant \
-  --collection thesis_chunks_v2 setup
+  setup
 
 uv run --env-file .env python main.py \
   --qdrant-path ./storage/vectorstore/qdrant \
-  --collection thesis_chunks_v2 ingest-dir --dir ./data/raw --pattern '*/*.pdf'
+  ingest-dir --dir ./data/raw --pattern '*/*.pdf'
 ```

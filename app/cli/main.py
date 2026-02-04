@@ -17,7 +17,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--qdrant-host", default="localhost")
     parser.add_argument("--qdrant-port", type=int, default=6333)
-    parser.add_argument("--collection", default="thesis_chunks")
+    parser.add_argument("--collection", default="thesis_chunks_v2")
     parser.add_argument("--embedding-model", default="text-embedding-3-small")
     parser.add_argument("--chat-model", default="gpt-4o-mini")
 

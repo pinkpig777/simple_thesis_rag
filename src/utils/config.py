@@ -6,7 +6,7 @@ class RAGConfig:
     qdrant_path: str | None = None
     qdrant_host: str = "localhost"
     qdrant_port: int = 6333
-    collection_name: str = "thesis_chunks"
+    collection_name: str = "thesis_chunks_v2"
     embedding_model: str = "text-embedding-3-small"
     embedding_dim: int = 1536
     chat_model: str = "gpt-4o-mini"

@@ -269,8 +269,8 @@ def build_demo() -> gr.Blocks:
                     question = gr.Textbox(label="Question", lines=3)
                     top_k = gr.Number(label="Top K", value=5, precision=0)
                     with gr.Row():
-                        year_min = gr.Number(label="Year Min", precision=0)
-                        year_max = gr.Number(label="Year Max", precision=0)
+                        year_min = gr.Number(label="Year Min", value=None, precision=0)
+                        year_max = gr.Number(label="Year Max", value=None, precision=0)
                     with gr.Row():
                         university = gr.Textbox(label="University")
                         author = gr.Textbox(label="Author")

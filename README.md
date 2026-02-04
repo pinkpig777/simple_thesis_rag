@@ -88,14 +88,20 @@ Generation behavior:
 
 ## Quickstart (Local Qdrant Mode)
 
-0) Install `uv`
+0) Clone this project
+```bash
+git clone https://github.com/pinkpig777/simple_thesis_rag.git
+cd simple_thesis_rag
+```
+
+1) Install `uv`
 
 ```bash
 # On macOS and Linux.
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-1) Install dependencies:
+2) Install dependencies:
 
 ```bash
 uv sync
@@ -107,13 +113,13 @@ If MinerU model download is slow/blocked in your region, set:
 export MINERU_MODEL_SOURCE=modelscope
 ```
 
-2) Create `.env`:
+3) Create `.env` (copy the `.env.example` and rename it):
 
 ```bash
 OPENAI_API_KEY=your_key_here
 ```
 
-3) Setup local Qdrant collection:
+4) Setup local Qdrant collection:
 
 ```bash
 uv run --env-file .env python main.py \
@@ -121,7 +127,7 @@ uv run --env-file .env python main.py \
   setup
 ```
 
-4) Ingest all PDFs in `data/raw/*/*.pdf`:
+5) Ingest all PDFs in `data/raw/*/*.pdf`:
 
 ```bash
 uv run --env-file .env python main.py \
@@ -129,7 +135,7 @@ uv run --env-file .env python main.py \
   ingest-dir --dir ./data/raw --pattern '*/*.pdf'
 ```
 
-5) Query:
+6) Query:
 
 ```bash
 uv run --env-file .env python main.py \

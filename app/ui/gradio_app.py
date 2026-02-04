@@ -41,32 +41,45 @@ def _build_pipeline(
     return ThesisRAGPipeline(config=config)
 
 
-def _format_source_label(metadata: dict[str, Any]) -> str:
-    """Build a readable source label with disambiguation fields."""
+def _format_source_title(metadata: dict[str, Any]) -> str:
+    """Build a readable source title with disambiguation for generic names."""
     title = str(metadata.get("title") or "Unknown")
     work_title = str(metadata.get("work_title") or "")
     document_type = str(metadata.get("document_type") or "")
-    filename = str(metadata.get("filename") or "")
-    source_path = str(metadata.get("source_path") or "")
-    document_id = str(metadata.get("document_id") or "Unknown")
 
     generic_titles = {"manuscript", "paper", "readme", "slides", "published", "unknown"}
     normalized_title = title.strip().lower()
     if work_title and normalized_title in generic_titles:
         title = f"{work_title} ({document_type})" if document_type else work_title
 
-    short_id = document_id[:8] if len(document_id) >= 8 else document_id
-    extras = []
-    if source_path:
-        extras.append(f"path: {source_path}")
-    if filename:
-        extras.append(f"file: {filename}")
-    if short_id:
-        extras.append(f"doc: {short_id}")
-
-    if extras:
-        return f"{title} | " + " | ".join(extras)
     return title
+
+
+def _format_sources_markdown(sources: list[dict[str, Any]]) -> str:
+    """Format retrieved sources in a readable markdown block."""
+    if not sources:
+        return "No sources."
+
+    lines = ["### Retrieved Sources", ""]
+    for rank, source in enumerate(sources, start=1):
+        metadata = source["metadata"]
+        title = _format_source_title(metadata)
+        filename = str(metadata.get("filename") or "")
+        source_path = str(metadata.get("source_path") or "")
+        document_id = str(metadata.get("document_id") or "Unknown")
+        short_id = document_id[:8] if len(document_id) >= 8 else document_id
+        page_number = metadata.get("page_number", "Unknown")
+        score = float(source["score"])
+
+        lines.append(f"**[{rank}] {title}**")
+        lines.append(f"- Score: `{score:.3f}` | Page: `{page_number}` | Doc: `{short_id}`")
+        if filename:
+            lines.append(f"- File: `{filename}`")
+        if source_path:
+            lines.append(f"- Path: `{source_path}`")
+        lines.append("")
+
+    return "\n".join(lines).strip()
 
 
 def setup_collection_ui(
@@ -206,15 +219,7 @@ def query_ui(
             top_k=_to_int(top_k, 5),
         )
 
-        source_lines = []
-        for source in result["sources"]:
-            metadata = source["metadata"]
-            label = _format_source_label(metadata)
-            source_lines.append(
-                f"- {label} (p.{metadata['page_number']}), score: {source['score']:.3f}"
-            )
-
-        sources = "\n".join(source_lines) if source_lines else "No sources."
+        sources = _format_sources_markdown(result["sources"])
         return result["answer"], sources
     except Exception as exc:
         return f"Error: {exc}", ""
@@ -339,4 +344,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

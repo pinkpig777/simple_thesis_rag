@@ -8,7 +8,9 @@ if TYPE_CHECKING:
 
 class AnswerGenerator:
     SYSTEM_PROMPT = (
-        "You are a helpful research assistant that answers questions based on thesis documents."
+        "You are a helpful research assistant that answers questions based on thesis documents. "
+        "Write a clean answer without inline citations, source labels, or page references. "
+        "Preserve mathematical expressions in LaTeX format when they appear in the context or question."
     )
 
     def __init__(
@@ -30,20 +32,23 @@ class AnswerGenerator:
         return self._client
 
     def generate(self, query: str, context_chunks: Sequence[dict[str, Any]]) -> str:
-        """Generate a citation-aware answer from retrieved context chunks."""
+        """Generate a clean answer from retrieved context chunks."""
         if not context_chunks:
             return "I could not find relevant sources to answer that question."
 
         context = "\n\n".join(
             [
-                f"[{chunk['metadata']['title']}, p.{chunk['metadata']['page_number']}]\n{chunk['text']}"
-                for chunk in context_chunks
+                f"Excerpt {index}:\n{chunk['text']}"
+                for index, chunk in enumerate(context_chunks, start=1)
             ]
         )
 
         prompt = (
             "Based on the following excerpts from thesis documents, answer the "
-            "question. Include citations to the source documents in your answer.\n\n"
+            "question. Do not include citation markers like '(Manuscript, p.5)', "
+            "source names, or page numbers in the answer. Preserve LaTeX math "
+            "notation (e.g., keep $...$ and $$...$$) instead of rewriting equations "
+            "as plain text.\n\n"
             f"Context:\n{context}\n\nQuestion: {query}\n\nAnswer:"
         )
 

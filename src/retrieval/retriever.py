@@ -27,6 +27,10 @@ class Retriever:
                     "metadata": {
                         "document_id": payload.get("document_id", "Unknown"),
                         "title": payload.get("title", "Unknown"),
+                        "work_title": payload.get("work_title", ""),
+                        "document_type": payload.get("document_type", ""),
+                        "filename": payload.get("filename", ""),
+                        "source_path": payload.get("source_path", ""),
                         "author": payload.get("author", "Unknown"),
                         "year": payload.get("year", "Unknown"),
                         "page_number": payload.get("page_number", "Unknown"),

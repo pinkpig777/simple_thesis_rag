@@ -57,7 +57,7 @@ Query pipeline (`query`):
 2. Run vector search in Qdrant with optional filters (`src/indexing/qdrant_store.py`).
 3. Format top-k retrieved chunks with scores (`src/retrieval/retriever.py`).
 4. Build LLM context from retrieved chunks (`src/generation/answer_generator.py`).
-5. **[OpenAI API]** Generate final answer with citations (`src/generation/answer_generator.py`).
+5. **[OpenAI API]** Generate final answer text (sources are listed separately by CLI) (`src/generation/answer_generator.py`).
 
 OpenAI API call sites:
 

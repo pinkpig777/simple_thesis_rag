@@ -48,16 +48,21 @@ Ingestion pipeline (`ingest` / `ingest-dir`):
 2. Extract page text (`src/ingestion/pdf_ingestor.py`).
 3. Chunk text into fixed-size word chunks (`src/chunking/text_chunker.py`).
 4. Build metadata + `document_id` (`src/utils/metadata.py`).
-5. Generate embedding for each chunk (`src/embeddings/openai_embedder.py`).
+5. **[OpenAI API]** Generate embedding for each chunk (`src/embeddings/openai_embedder.py`).
 6. Upsert chunk vectors + payload into Qdrant (`src/indexing/qdrant_store.py`).
 
 Query pipeline (`query`):
 
-1. Embed user question (`src/retrieval/retriever.py`).
+1. **[OpenAI API]** Embed user question (`src/retrieval/retriever.py` -> `src/embeddings/openai_embedder.py`).
 2. Run vector search in Qdrant with optional filters (`src/indexing/qdrant_store.py`).
 3. Format top-k retrieved chunks with scores (`src/retrieval/retriever.py`).
 4. Build LLM context from retrieved chunks (`src/generation/answer_generator.py`).
-5. Generate final answer with citations (`src/generation/answer_generator.py`).
+5. **[OpenAI API]** Generate final answer with citations (`src/generation/answer_generator.py`).
+
+OpenAI API call sites:
+
+- `src/embeddings/openai_embedder.py` -> `OpenAIEmbedder.embed()` uses `client.embeddings.create(...)`
+- `src/generation/answer_generator.py` -> `AnswerGenerator.generate()` uses `client.chat.completions.create(...)`
 
 Flow summary:
 
@@ -74,6 +79,7 @@ uv sync
 
 # Put your key in .env:
 # OPENAI_API_KEY=...
+# (Needed for ingest/query, not required for setup)
 
 # Option A: run Qdrant server
 docker run -p 6333:6333 qdrant/qdrant

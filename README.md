@@ -10,6 +10,7 @@ Primary entrypoints:
 - `main.py`: CLI runner.
 - `app/cli/main.py`: CLI argument parsing and command handlers.
 - `src/pipelines/thesis_rag_pipeline.py`: Orchestration layer.
+- `app/ui/gradio_app.py`: Gradio UI over the same in-process pipeline.
 
 ## Current Defaults
 
@@ -87,7 +88,20 @@ Generation behavior:
 
 ## Quickstart (Local Qdrant Mode)
 
-1) Install dependencies:
+0) Clone this project
+```bash
+git clone https://github.com/pinkpig777/simple_thesis_rag.git
+cd simple_thesis_rag
+```
+
+1) Install `uv`
+
+```bash
+# On macOS and Linux.
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+2) Install dependencies:
 
 ```bash
 uv sync
@@ -99,13 +113,13 @@ If MinerU model download is slow/blocked in your region, set:
 export MINERU_MODEL_SOURCE=modelscope
 ```
 
-2) Create `.env`:
+3) Create `.env` (copy the `.env.example` and rename it):
 
 ```bash
 OPENAI_API_KEY=your_key_here
 ```
 
-3) Setup local Qdrant collection:
+4) Setup local Qdrant collection:
 
 ```bash
 uv run --env-file .env python main.py \
@@ -113,7 +127,7 @@ uv run --env-file .env python main.py \
   setup
 ```
 
-4) Ingest all PDFs in `data/raw/*/*.pdf`:
+5) Ingest all PDFs in `data/raw/*/*.pdf`:
 
 ```bash
 uv run --env-file .env python main.py \
@@ -121,13 +135,27 @@ uv run --env-file .env python main.py \
   ingest-dir --dir ./data/raw --pattern '*/*.pdf'
 ```
 
-5) Query:
+6) Query:
 
 ```bash
 uv run --env-file .env python main.py \
   --qdrant-path ./storage/vectorstore/qdrant \
   query --question "what is household income"
 ```
+
+## Gradio UI (No Separate Backend Service)
+
+Launch interactive UI with the same pipeline code (no FastAPI required):
+
+```bash
+uv run --env-file .env python app/ui/gradio_app.py
+```
+
+In the UI:
+
+- Use **Settings** to pick local path/host/collection/model values.
+- Use **Ingest** tab for single-PDF or folder ingestion.
+- Use **Query** tab for answer generation and source inspection.
 
 ## Server Mode (Optional)
 

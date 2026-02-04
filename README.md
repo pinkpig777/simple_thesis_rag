@@ -10,6 +10,7 @@ Primary entrypoints:
 - `main.py`: CLI runner.
 - `app/cli/main.py`: CLI argument parsing and command handlers.
 - `src/pipelines/thesis_rag_pipeline.py`: Orchestration layer.
+- `app/ui/gradio_app.py`: Gradio UI over the same in-process pipeline.
 
 ## Current Defaults
 
@@ -128,6 +129,20 @@ uv run --env-file .env python main.py \
   --qdrant-path ./storage/vectorstore/qdrant \
   query --question "what is household income"
 ```
+
+## Gradio UI (No Separate Backend Service)
+
+Launch interactive UI with the same pipeline code (no FastAPI required):
+
+```bash
+uv run --env-file .env python app/ui/gradio_app.py
+```
+
+In the UI:
+
+- Use **Settings** to pick local path/host/collection/model values.
+- Use **Ingest** tab for single-PDF or folder ingestion.
+- Use **Query** tab for answer generation and source inspection.
 
 ## Server Mode (Optional)
 

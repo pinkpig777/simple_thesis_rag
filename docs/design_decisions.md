@@ -145,6 +145,13 @@ It is a lightweight ADR-style log for implementation and maintenance alignment.
 - **Why**: Better handling for academic PDFs with formulas, tables, and complex layouts.
 - **Consequence**: Ingestion depends on MinerU runtime/model availability; PDF embedded metadata is no longer read directly via PyPDF2.
 
+## DD-021: Build first UI as in-process Gradio app
+
+- **Status**: Accepted
+- **Decision**: Add `app/ui/gradio_app.py` as the first UI, directly invoking pipeline classes in the same Python process.
+- **Why**: Fastest path to an interactive workflow without introducing API/service orchestration complexity.
+- **Consequence**: Tight coupling between UI and pipeline runtime; later migration to API-backed UI is still possible.
+
 ---
 
 ## Open Decisions / Next Candidates

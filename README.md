@@ -1,124 +1,149 @@
 # Simple Thesis RAG
 
-```text
-simple_rag/
-├── app/                    # Entry points (API, CLI)
-│   ├── api/
-│   └── cli/
-├── configs/                # YAML/TOML/JSON configs
-├── data/                   # Local datasets
-│   ├── raw/
-│   ├── interim/
-│   └── processed/
-├── docs/                   # Design notes and runbooks
-├── notebooks/              # Experiments and analysis
-├── prompts/                # Prompt templates
-├── scripts/                # One-off or scheduled scripts
-├── src/                    # Core application code
-│   ├── chunking/
-│   ├── embeddings/
-│   ├── evaluation/
-│   ├── generation/
-│   ├── indexing/
-│   ├── ingestion/
-│   ├── pipelines/
-│   ├── retrieval/
-│   └── utils/
-├── storage/                # Local vector store + embeddings cache
-│   ├── embeddings/
-│   └── vectorstore/
-└── tests/
-    ├── e2e/
-    ├── integration/
-    └── unit/
-```
+## Overview
 
-## Entrypoints
+This project ingests thesis PDFs, stores chunk embeddings in Qdrant, and answers
+questions with retrieval-augmented generation (RAG).
 
-- `main.py` -> CLI entrypoint
-- `app/cli/main.py` -> command parser and command handlers
-- `src/` -> modular RAG implementation (ingestion, indexing, retrieval, generation, pipeline)
-- `thesis_rag.py` -> backward-compatible facade for older scripts
+Primary entrypoints:
 
-## Pipeline (Explicit)
+- `main.py`: CLI runner.
+- `app/cli/main.py`: CLI argument parsing and command handlers.
+- `src/pipelines/thesis_rag_pipeline.py`: Orchestration layer.
 
-Ingestion pipeline (`ingest` / `ingest-dir`):
+## Current Defaults
 
-1. Read PDFs from disk (`src/pipelines/thesis_rag_pipeline.py` -> `ingest_pdf` / `ingest_directory`).
-2. Extract page text (`src/ingestion/pdf_ingestor.py`).
-3. Chunk text into fixed-size word chunks (`src/chunking/text_chunker.py`).
-4. Build metadata from folder path + PDF embedded fields, then create `document_id` (`src/utils/metadata.py`).
-5. **[OpenAI API]** Generate embedding for each chunk (`src/embeddings/openai_embedder.py`).
-6. Upsert chunk vectors + payload into Qdrant (`src/indexing/qdrant_store.py`).
+Default runtime settings (from `src/utils/config.py`):
 
-Query pipeline (`query`):
+- `collection_name`: `thesis_chunks`
+- `embedding_model`: `text-embedding-3-small`
+- `embedding_dim`: `1536`
+- `chat_model`: `gpt-4o-mini`
+- `upsert_batch_size`: `100`
+- Qdrant remote mode: `localhost:6333`
+- Qdrant local mode: use `--qdrant-path <path>`
 
-1. **[OpenAI API]** Embed user question (`src/retrieval/retriever.py` -> `src/embeddings/openai_embedder.py`).
-2. Run vector search in Qdrant with optional filters (`src/indexing/qdrant_store.py`).
-3. Format top-k retrieved chunks with scores (`src/retrieval/retriever.py`).
-4. Build LLM context from retrieved chunks (`src/generation/answer_generator.py`).
-5. **[OpenAI API]** Generate final answer text (sources are listed separately by CLI) (`src/generation/answer_generator.py`).
+## Data Contract
 
-OpenAI API call sites:
-
-- `src/embeddings/openai_embedder.py` -> `OpenAIEmbedder.embed()` uses `client.embeddings.create(...)`
-- `src/generation/answer_generator.py` -> `AnswerGenerator.generate()` uses `client.chat.completions.create(...)`
-
-Flow summary:
+Expected input layout:
 
 ```text
-PDFs -> extract text -> chunk -> embed -> Qdrant
-Question -> embed -> Qdrant retrieve -> prompt with chunks -> answer
+data/raw/<work_title>/<file>.pdf
 ```
 
-## Metadata Strategy
+Chunk text and metadata are stored in Qdrant payloads (including `payload["text"]`).
 
-Metadata is now path-aware for your dataset layout: `data/raw/<work_title>/<file>.pdf`.
+## Metadata Extraction Strategy
 
-- `work_title`: parent folder name (canonical paper/work title)
-- `document_type`: inferred from filename (`manuscript`, `published`, `slides`, `readme`, `paper`)
-- `title`: built from PDF `/Title` when valid, otherwise from folder/filename + variant suffix
-- `author` and `authors`: parsed from PDF `/Author`
-- `year`: extracted from PDF creation date first, then filename/folder text
-- `source_path` and `source_folder`: traceability back to file location
-- `document_id`: hash of full PDF path (prevents collisions like multiple `Manuscript.pdf`)
+Metadata is path-aware and PDF-aware (`src/utils/metadata.py`):
 
-## Run with uv
+- Uses folder name as canonical `work_title`.
+- Infers `document_type` from filename (`manuscript`, `published`, `slides`, `readme`, `paper`).
+- Uses PDF fields (`/Title`, `/Author`, `/Subject`, `/CreationDate`) when valid.
+- Derives `year` from PDF creation date first, then fallback heuristics.
+- Stores `source_path`, `source_folder`, and a path-based `document_id`.
+
+Why path-based `document_id`:
+
+- Prevents collisions across files with the same filename (for example many `Manuscript.pdf` files).
+
+## OpenAI API Usage
+
+OpenAI is used in two places:
+
+1. Embeddings (`src/embeddings/openai_embedder.py`)
+   - `client.embeddings.create(...)`
+2. Answer generation (`src/generation/answer_generator.py`)
+   - `client.chat.completions.create(...)`
+
+`OPENAI_API_KEY` is required for `ingest`, `ingest-dir`, and `query`.
+It is not required for `setup`.
+
+## Pipeline Workflow
+
+Ingestion workflow:
+
+1. Read PDF file(s).
+2. Extract page text.
+3. Chunk text (word-based chunking).
+4. Build metadata and `document_id`.
+5. Call OpenAI embeddings API.
+6. Upsert vectors + payload to Qdrant.
+
+Query workflow:
+
+1. Embed user question (OpenAI embeddings API).
+2. Retrieve top-k chunks from Qdrant.
+3. Build LLM context from retrieved chunks.
+4. Generate final answer (OpenAI chat API).
+5. Print answer and structured source list.
+
+Generation behavior:
+
+- The answer omits inline citation markers like `(Manuscript, p.5)`.
+- LaTeX math notation is preserved when present.
+- Sources are listed separately by CLI with title and disambiguation fields when available.
+
+## Quickstart (Local Qdrant Mode)
+
+1) Install dependencies:
 
 ```bash
-# Install deps from pyproject.toml
 uv sync
-
-# Put your key in .env:
-# OPENAI_API_KEY=...
-# (Needed for ingest/query, not required for setup)
-
-# Option A: run Qdrant server
-docker run -p 6333:6333 qdrant/qdrant
-
-# Setup collection
-uv run --env-file .env python main.py setup
-
-# Ingest one PDF
-uv run --env-file .env python main.py ingest --pdf ./theses/sample.pdf
-
-# Ingest an entire directory
-uv run --env-file .env python main.py ingest-dir --dir ./theses
-
-# Query
-uv run --env-file .env python main.py query --question "What are common machine learning optimization techniques?"
 ```
 
-Or use embedded local Qdrant mode (no server process):
+2) Create `.env`:
 
 ```bash
-uv run --env-file .env python main.py --qdrant-path ./storage/vectorstore/qdrant setup
+OPENAI_API_KEY=your_key_here
 ```
 
-Ingest all PDFs under `data/raw/*/*.pdf`:
+3) Setup local Qdrant collection:
+
+```bash
+uv run --env-file .env python main.py \
+  --qdrant-path ./storage/vectorstore/qdrant \
+  setup
+```
+
+4) Ingest all PDFs in `data/raw/*/*.pdf`:
 
 ```bash
 uv run --env-file .env python main.py \
   --qdrant-path ./storage/vectorstore/qdrant \
   ingest-dir --dir ./data/raw --pattern '*/*.pdf'
+```
+
+5) Query:
+
+```bash
+uv run --env-file .env python main.py \
+  --qdrant-path ./storage/vectorstore/qdrant \
+  query --question "what is household income"
+```
+
+## Server Mode (Optional)
+
+Start Qdrant:
+
+```bash
+docker run -p 6333:6333 qdrant/qdrant
+```
+
+Then run CLI commands without `--qdrant-path`.
+
+## Note on Existing Collections
+
+If your current collection was built before metadata redesign, source lines may still
+show generic names (for example `Manuscript`). Re-ingest into a new collection to
+fully use richer metadata:
+
+```bash
+uv run --env-file .env python main.py \
+  --qdrant-path ./storage/vectorstore/qdrant \
+  --collection thesis_chunks_v2 setup
+
+uv run --env-file .env python main.py \
+  --qdrant-path ./storage/vectorstore/qdrant \
+  --collection thesis_chunks_v2 ingest-dir --dir ./data/raw --pattern '*/*.pdf'
 ```

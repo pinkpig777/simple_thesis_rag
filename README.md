@@ -86,6 +86,30 @@ Generation behavior:
 - LaTeX math notation is preserved when present.
 - Sources are listed separately by CLI with title and disambiguation fields when available.
 
+## Describe MinerU Figures/Tables with OpenAI
+
+If you already ran MinerU and have `*_content_list.json` plus `images/`, you can
+generate vision descriptions and save them as a referential JSON index.
+
+Example:
+
+```bash
+uv run --env-file .env python scripts/describe_mineru_images.py \
+  --input-path ./data/interim/mineru_out \
+  --output-file ./data/processed/image_descriptions.json \
+  --model gpt-4o-mini \
+  --types image table
+```
+
+Output JSON includes, for each described asset:
+
+- `id` (stable record id)
+- `content_list_path` + `item_index` (exact MinerU item reference)
+- `image_rel_path` + `image_path` (file reference)
+- `page_number`, `item_type`, `context`, `description`
+
+Use `--dry-run` to preview discovered items without calling OpenAI.
+
 ## Quickstart (Local Qdrant Mode)
 
 0) Clone this project

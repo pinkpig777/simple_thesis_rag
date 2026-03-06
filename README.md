@@ -52,11 +52,12 @@ Metadata is primarily path-aware (`src/utils/metadata.py`):
 - Infers `document_type` from filename (`manuscript`, `published`, `slides`, `readme`, `paper`).
 - Supports optional PDF metadata fields (`/Title`, `/Author`, `/Subject`, `/CreationDate`) when provided by an ingestion adapter.
 - Derives `year` from PDF creation date first, then fallback heuristics.
-- Stores `source_path`, `source_folder`, and a path-based `document_id`.
+- Stores `source_path`, `source_folder`, and a content-hash `document_id`.
 
-Why path-based `document_id`:
+Why content-hash `document_id`:
 
-- Prevents collisions across files with the same filename (for example many `Manuscript.pdf` files).
+- Stable across UI upload temp paths (same PDF bytes map to same id).
+- Enables document-level replace/upsert without duplicating the same uploaded file.
 
 ## OpenAI API Usage
 

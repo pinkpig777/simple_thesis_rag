@@ -5,9 +5,19 @@ from typing import Any, Mapping
 
 
 def build_document_id(pdf_path: Path) -> str:
-    """Build a deterministic document ID from the PDF path."""
-    normalized_path = pdf_path.as_posix().strip().lower()
-    return hashlib.md5(normalized_path.encode("utf-8")).hexdigest()
+    """Build a deterministic document ID from PDF bytes, with path fallback."""
+    digest = hashlib.md5()
+    try:
+        with pdf_path.open("rb") as handle:
+            while True:
+                chunk = handle.read(1024 * 1024)
+                if not chunk:
+                    break
+                digest.update(chunk)
+        return digest.hexdigest()
+    except OSError:
+        normalized_path = pdf_path.as_posix().strip().lower()
+        return hashlib.md5(normalized_path.encode("utf-8")).hexdigest()
 
 
 def _normalize_text(text: str) -> str:
@@ -166,4 +176,3 @@ def extract_simple_metadata(
         "pdf_creation_date": creation_date or "",
         "has_pdf_metadata": bool(pdf_title or pdf_author or pdf_subject or creation_date),
     }
-

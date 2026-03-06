@@ -15,7 +15,7 @@ from typing import Any
 from openai import OpenAI
 
 
-DEFAULT_TYPES = ("image", "table")
+DEFAULT_TYPES = ("image", "table", "equation")
 
 
 def parse_args() -> argparse.Namespace:
@@ -49,7 +49,7 @@ def parse_args() -> argparse.Namespace:
         "--types",
         nargs="+",
         default=list(DEFAULT_TYPES),
-        help="MinerU item types to process (default: image table).",
+        help="MinerU item types to process (default: image table equation).",
     )
     parser.add_argument(
         "--max-items",

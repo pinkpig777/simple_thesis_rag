@@ -98,7 +98,7 @@ uv run --env-file .env python scripts/describe_mineru_images.py \
   --input-path ./data/interim/mineru_out \
   --output-file ./data/processed/image_descriptions.json \
   --model gpt-4o-mini \
-  --types image table
+  --types image table equation
 ```
 
 Output JSON includes, for each described asset:
@@ -109,6 +109,7 @@ Output JSON includes, for each described asset:
 - `page_number`, `item_type`, `context`, `description`
 
 Use `--dry-run` to preview discovered items without calling OpenAI.
+If `--types` is omitted, the script processes `image`, `table`, and `equation`.
 
 ## Quickstart (Local Qdrant Mode)
 

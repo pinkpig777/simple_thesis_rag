@@ -62,6 +62,7 @@ class QdrantStore:
             ("work_title", "text"),
             ("document_type", "keyword"),
             ("chunk_type", "keyword"),
+            ("visual_type", "keyword"),
             ("page_number", "integer"),
         ]
         for field_name, field_type in indexes:

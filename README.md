@@ -12,6 +12,13 @@ Primary entrypoints:
 - `src/pipelines/thesis_rag_pipeline.py`: Orchestration layer.
 - `app/ui/gradio_app.py`: Gradio UI over the same in-process pipeline.
 
+## New Features
+
+- Upload-first ingestion flow in the UI.
+- Automatic visual description for `image`, `table`, and `equation` during ingest.
+- Document-level replace on ingest (delete old points for the same `document_id`, then upsert).
+- Cached visual descriptions at `data/processed/visual_descriptions/<document_id>.json`.
+
 ## Current Defaults
 
 Default runtime settings (from `src/utils/config.py`):
@@ -198,6 +205,42 @@ In the UI:
 - Use **Ingest** tab to upload one PDF or ingest a folder.
 - Keep **Describe visuals** and **Replace existing document** enabled for upload-first workflow.
 - Use **Query** tab for answer generation and source inspection.
+
+## App Usage (Step-by-Step)
+
+1) Launch app:
+
+```bash
+uv run --env-file .env python app/ui/gradio_app.py
+```
+
+2) In **Settings**:
+
+- Set `Qdrant Local Path` to `./storage/vectorstore/qdrant` (or use host/port mode).
+- Confirm `Collection` (default: `thesis_chunks_v2`).
+- Confirm model settings (`Embedding`, `Chat`, `Visual Description`).
+- Confirm:
+  - `MinerU Output Root` (default: `./data/interim/mineru_out`)
+  - `Visual Description Cache Root` (default: `./data/processed/visual_descriptions`)
+
+3) Click **Setup Collection** once.
+
+4) In **Ingest** tab:
+
+- Upload one PDF in **Upload PDF** (or provide a path in `PDF Path (fallback)`).
+- Keep these checked for the intended workflow:
+  - **Describe visuals (image/table/equation)**
+  - **Replace existing document in collection**
+- Click **Ingest PDF** and wait for completion status.
+
+5) In **Query** tab:
+
+- Ask a question, set `Top K`, and optional metadata filters.
+- Review the generated answer and retrieved source list.
+
+6) Optional directory ingest:
+
+- Use **Ingest Directory** with a glob pattern (default `*/*.pdf`) for batch indexing.
 
 ## Server Mode (Optional)
 

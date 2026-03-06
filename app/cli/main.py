@@ -20,6 +20,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--collection", default="thesis_chunks_v2")
     parser.add_argument("--embedding-model", default="text-embedding-3-small")
     parser.add_argument("--chat-model", default="gpt-4o-mini")
+    parser.add_argument("--visual-model", default="gpt-4o-mini")
+    parser.add_argument("--mineru-output-root", default="data/interim/mineru_out")
+    parser.add_argument("--visual-description-root", default="data/processed/visual_descriptions")
 
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -32,10 +35,46 @@ def build_parser() -> argparse.ArgumentParser:
     ingest_parser.add_argument("--university")
     ingest_parser.add_argument("--author")
     ingest_parser.add_argument("--title")
+    ingest_parser.add_argument(
+        "--describe-visuals",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Generate image/table/equation descriptions during ingestion.",
+    )
+    ingest_parser.add_argument(
+        "--replace-document",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Delete existing points for this document_id before upsert.",
+    )
+    ingest_parser.add_argument(
+        "--overwrite-visual-descriptions",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Regenerate all visual descriptions even when cache exists.",
+    )
 
     ingest_dir_parser = subparsers.add_parser("ingest-dir", help="Ingest all PDFs in a folder")
     ingest_dir_parser.add_argument("--dir", type=Path, required=True)
     ingest_dir_parser.add_argument("--pattern", default="*.pdf")
+    ingest_dir_parser.add_argument(
+        "--describe-visuals",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Generate image/table/equation descriptions during ingestion.",
+    )
+    ingest_dir_parser.add_argument(
+        "--replace-document",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Delete existing points for each document_id before upsert.",
+    )
+    ingest_dir_parser.add_argument(
+        "--overwrite-visual-descriptions",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Regenerate all visual descriptions even when cache exists.",
+    )
 
     query_parser = subparsers.add_parser("query", help="Query and generate an answer")
     query_parser.add_argument("--question", required=True)
@@ -59,6 +98,9 @@ def _build_pipeline(args: argparse.Namespace) -> "ThesisRAGPipeline":
         collection_name=args.collection,
         embedding_model=args.embedding_model,
         chat_model=args.chat_model,
+        visual_description_model=args.visual_model,
+        mineru_output_root=args.mineru_output_root,
+        visual_description_root=args.visual_description_root,
     )
     return ThesisRAGPipeline(config=config)
 
@@ -138,13 +180,22 @@ def main(argv: Sequence[str] | None = None) -> int:
                 args.pdf,
                 metadata=_metadata_from_args(args),
                 chunk_size=args.chunk_size,
+                describe_visuals=args.describe_visuals,
+                replace_document=args.replace_document,
+                overwrite_visual_descriptions=args.overwrite_visual_descriptions,
             )
             print(f"Ingested {args.pdf} ({chunk_count} chunks).")
             return 0
 
         if args.command == "ingest-dir":
             rag.setup_collection()
-            file_count, chunk_count = rag.ingest_directory(args.dir, pattern=args.pattern)
+            file_count, chunk_count = rag.ingest_directory(
+                args.dir,
+                pattern=args.pattern,
+                describe_visuals=args.describe_visuals,
+                replace_document=args.replace_document,
+                overwrite_visual_descriptions=args.overwrite_visual_descriptions,
+            )
             print(f"Ingested {file_count} files ({chunk_count} chunks) from {args.dir}.")
             return 0
 

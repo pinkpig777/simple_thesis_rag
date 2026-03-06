@@ -267,9 +267,18 @@ def describe_visual_assets(
     if max_items is not None and max_items >= 0:
         visual_items = visual_items[:max_items]
 
+    discovered_ids = {str(item["id"]) for item in visual_items}
+
     existing_by_id: dict[str, dict[str, Any]] = {}
     if not overwrite:
         existing_by_id = load_existing_records(normalized_output)
+        # Keep cache entries aligned to the current scan when not doing a max-items sample run.
+        if max_items is None:
+            existing_by_id = {
+                record_id: record
+                for record_id, record in existing_by_id.items()
+                if record_id in discovered_ids
+            }
 
     if progress:
         progress(

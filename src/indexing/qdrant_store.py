@@ -6,6 +6,7 @@ from qdrant_client.models import (
     Distance,
     FieldCondition,
     Filter,
+    FilterSelector,
     MatchValue,
     PointStruct,
     Range,
@@ -61,6 +62,7 @@ class QdrantStore:
             ("work_title", "text"),
             ("document_type", "keyword"),
             ("chunk_type", "keyword"),
+            ("visual_type", "keyword"),
             ("page_number", "integer"),
         ]
         for field_name, field_type in indexes:
@@ -96,6 +98,23 @@ class QdrantStore:
             self.client.upsert(collection_name=self.collection_name, points=points)
 
         return len(chunks)
+
+    def delete_document(self, document_id: str) -> None:
+        """Delete all points associated with one document id."""
+        self.client.delete(
+            collection_name=self.collection_name,
+            points_selector=FilterSelector(
+                filter=Filter(
+                    must=[
+                        FieldCondition(
+                            key="document_id",
+                            match=MatchValue(value=document_id),
+                        )
+                    ]
+                )
+            ),
+            wait=True,
+        )
 
     def search(
         self,

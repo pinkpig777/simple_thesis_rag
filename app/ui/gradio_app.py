@@ -21,6 +21,13 @@ def _to_optional_int(value: Any) -> int | None:
     return int(value)
 
 
+def _resolve_pdf_path(uploaded_pdf: Any, pdf_path: str) -> Path:
+    """Resolve PDF input from upload widget first, then fallback textbox path."""
+    if isinstance(uploaded_pdf, str) and uploaded_pdf.strip():
+        return Path(uploaded_pdf.strip())
+    return Path(pdf_path.strip())
+
+
 def _build_pipeline(
     qdrant_path: str,
     qdrant_host: str,
@@ -28,6 +35,9 @@ def _build_pipeline(
     collection: str,
     embedding_model: str,
     chat_model: str,
+    visual_model: str,
+    mineru_output_root: str,
+    visual_description_root: str,
 ) -> ThesisRAGPipeline:
     """Create a pipeline from UI settings."""
     config = RAGConfig(
@@ -37,6 +47,11 @@ def _build_pipeline(
         collection_name=collection.strip() or "thesis_chunks_v2",
         embedding_model=embedding_model.strip() or "text-embedding-3-small",
         chat_model=chat_model.strip() or "gpt-4o-mini",
+        visual_description_model=visual_model.strip() or "gpt-4o-mini",
+        mineru_output_root=mineru_output_root.strip() or "data/interim/mineru_out",
+        visual_description_root=(
+            visual_description_root.strip() or "data/processed/visual_descriptions"
+        ),
     )
     return ThesisRAGPipeline(config=config)
 
@@ -89,6 +104,9 @@ def setup_collection_ui(
     collection: str,
     embedding_model: str,
     chat_model: str,
+    visual_model: str,
+    mineru_output_root: str,
+    visual_description_root: str,
 ) -> str:
     """Handle collection setup action from the UI."""
     try:
@@ -99,6 +117,9 @@ def setup_collection_ui(
             collection,
             embedding_model,
             chat_model,
+            visual_model,
+            mineru_output_root,
+            visual_description_root,
         )
         created = pipeline.setup_collection()
         if created:
@@ -109,18 +130,25 @@ def setup_collection_ui(
 
 
 def ingest_pdf_ui(
+    uploaded_pdf: Any,
     pdf_path: str,
     chunk_size: Any,
+    describe_visuals: bool,
+    replace_document: bool,
+    overwrite_visual_descriptions: bool,
     qdrant_path: str,
     qdrant_host: str,
     qdrant_port: Any,
     collection: str,
     embedding_model: str,
     chat_model: str,
+    visual_model: str,
+    mineru_output_root: str,
+    visual_description_root: str,
 ) -> str:
     """Handle single-PDF ingestion action from the UI."""
     try:
-        pdf = Path(pdf_path.strip())
+        pdf = _resolve_pdf_path(uploaded_pdf, pdf_path)
         if not pdf.exists():
             return f"Error: PDF not found: {pdf}"
 
@@ -131,9 +159,18 @@ def ingest_pdf_ui(
             collection,
             embedding_model,
             chat_model,
+            visual_model,
+            mineru_output_root,
+            visual_description_root,
         )
         pipeline.setup_collection()
-        count = pipeline.ingest_pdf(pdf, chunk_size=_to_int(chunk_size, 500))
+        count = pipeline.ingest_pdf(
+            pdf,
+            chunk_size=_to_int(chunk_size, 500),
+            describe_visuals=describe_visuals,
+            replace_document=replace_document,
+            overwrite_visual_descriptions=overwrite_visual_descriptions,
+        )
         return f"Ingested `{pdf}` with {count} chunks."
     except Exception as exc:
         return f"Error: {exc}"
@@ -142,12 +179,18 @@ def ingest_pdf_ui(
 def ingest_dir_ui(
     directory: str,
     pattern: str,
+    describe_visuals: bool,
+    replace_document: bool,
+    overwrite_visual_descriptions: bool,
     qdrant_path: str,
     qdrant_host: str,
     qdrant_port: Any,
     collection: str,
     embedding_model: str,
     chat_model: str,
+    visual_model: str,
+    mineru_output_root: str,
+    visual_description_root: str,
 ) -> str:
     """Handle directory ingestion action from the UI."""
     try:
@@ -162,10 +205,17 @@ def ingest_dir_ui(
             collection,
             embedding_model,
             chat_model,
+            visual_model,
+            mineru_output_root,
+            visual_description_root,
         )
         pipeline.setup_collection()
         file_count, chunk_count = pipeline.ingest_directory(
-            directory_path, pattern=pattern.strip() or "*.pdf"
+            directory_path,
+            pattern=pattern.strip() or "*.pdf",
+            describe_visuals=describe_visuals,
+            replace_document=replace_document,
+            overwrite_visual_descriptions=overwrite_visual_descriptions,
         )
         return f"Ingested {file_count} files and {chunk_count} chunks from `{directory_path}`."
     except Exception as exc:
@@ -185,6 +235,9 @@ def query_ui(
     collection: str,
     embedding_model: str,
     chat_model: str,
+    visual_model: str,
+    mineru_output_root: str,
+    visual_description_root: str,
 ) -> tuple[str, str]:
     """Handle question answering action from the UI."""
     try:
@@ -199,6 +252,9 @@ def query_ui(
             collection,
             embedding_model,
             chat_model,
+            visual_model,
+            mineru_output_root,
+            visual_description_root,
         )
 
         filters: dict[str, Any] = {}
@@ -244,6 +300,15 @@ def build_demo() -> gr.Blocks:
                 collection = gr.Textbox(label="Collection", value="thesis_chunks_v2")
                 embedding_model = gr.Textbox(label="Embedding Model", value="text-embedding-3-small")
                 chat_model = gr.Textbox(label="Chat Model", value="gpt-4o-mini")
+                visual_model = gr.Textbox(label="Visual Description Model", value="gpt-4o-mini")
+                mineru_output_root = gr.Textbox(
+                    label="MinerU Output Root",
+                    value="./data/interim/mineru_out",
+                )
+                visual_description_root = gr.Textbox(
+                    label="Visual Description Cache Root",
+                    value="./data/processed/visual_descriptions",
+                )
 
                 setup_button = gr.Button("Setup Collection", variant="primary")
                 setup_status = gr.Textbox(label="Setup Status", interactive=False)
@@ -251,17 +316,48 @@ def build_demo() -> gr.Blocks:
             with gr.Column(scale=2):
                 with gr.Tab("Ingest"):
                     gr.Markdown("### Ingest One PDF")
+                    uploaded_pdf = gr.File(
+                        label="Upload PDF",
+                        file_types=[".pdf"],
+                        type="filepath",
+                    )
                     pdf_path = gr.Textbox(
-                        label="PDF Path",
-                        value="data/raw/Accounting for Wealth Concentration in the United States/Manuscript.pdf",
+                        label="PDF Path (fallback)",
+                        value="",
                     )
                     chunk_size = gr.Number(label="Chunk Size (words)", value=500, precision=0)
+                    with gr.Row():
+                        describe_visuals = gr.Checkbox(
+                            label="Describe visuals (image/table/equation)",
+                            value=True,
+                        )
+                        replace_document = gr.Checkbox(
+                            label="Replace existing document in collection",
+                            value=True,
+                        )
+                        overwrite_visual_descriptions = gr.Checkbox(
+                            label="Overwrite visual cache",
+                            value=False,
+                        )
                     ingest_pdf_button = gr.Button("Ingest PDF")
                     ingest_pdf_status = gr.Textbox(label="Single PDF Status", interactive=False)
 
                     gr.Markdown("### Ingest Directory")
                     ingest_dir_path = gr.Textbox(label="Directory", value="data/raw")
                     ingest_pattern = gr.Textbox(label="Glob Pattern", value="*/*.pdf")
+                    with gr.Row():
+                        dir_describe_visuals = gr.Checkbox(
+                            label="Describe visuals (directory)",
+                            value=True,
+                        )
+                        dir_replace_document = gr.Checkbox(
+                            label="Replace existing documents",
+                            value=True,
+                        )
+                        dir_overwrite_visual_descriptions = gr.Checkbox(
+                            label="Overwrite visual cache",
+                            value=False,
+                        )
                     ingest_dir_button = gr.Button("Ingest Directory")
                     ingest_dir_status = gr.Textbox(label="Directory Status", interactive=False)
 
@@ -280,21 +376,38 @@ def build_demo() -> gr.Blocks:
 
         setup_button.click(
             setup_collection_ui,
-            inputs=[qdrant_path, qdrant_host, qdrant_port, collection, embedding_model, chat_model],
-            outputs=[setup_status],
-        )
-
-        ingest_pdf_button.click(
-            ingest_pdf_ui,
             inputs=[
-                pdf_path,
-                chunk_size,
                 qdrant_path,
                 qdrant_host,
                 qdrant_port,
                 collection,
                 embedding_model,
                 chat_model,
+                visual_model,
+                mineru_output_root,
+                visual_description_root,
+            ],
+            outputs=[setup_status],
+        )
+
+        ingest_pdf_button.click(
+            ingest_pdf_ui,
+            inputs=[
+                uploaded_pdf,
+                pdf_path,
+                chunk_size,
+                describe_visuals,
+                replace_document,
+                overwrite_visual_descriptions,
+                qdrant_path,
+                qdrant_host,
+                qdrant_port,
+                collection,
+                embedding_model,
+                chat_model,
+                visual_model,
+                mineru_output_root,
+                visual_description_root,
             ],
             outputs=[ingest_pdf_status],
         )
@@ -304,12 +417,18 @@ def build_demo() -> gr.Blocks:
             inputs=[
                 ingest_dir_path,
                 ingest_pattern,
+                dir_describe_visuals,
+                dir_replace_document,
+                dir_overwrite_visual_descriptions,
                 qdrant_path,
                 qdrant_host,
                 qdrant_port,
                 collection,
                 embedding_model,
                 chat_model,
+                visual_model,
+                mineru_output_root,
+                visual_description_root,
             ],
             outputs=[ingest_dir_status],
         )
@@ -329,6 +448,9 @@ def build_demo() -> gr.Blocks:
                 collection,
                 embedding_model,
                 chat_model,
+                visual_model,
+                mineru_output_root,
+                visual_description_root,
             ],
             outputs=[answer_output, sources_output],
         )

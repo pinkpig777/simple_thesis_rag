@@ -40,21 +40,59 @@ class ThesisRAGPipeline:
         pdf_path: Path,
         metadata: dict[str, Any] | None = None,
         chunk_size: int = 500,
+        describe_visuals: bool | None = None,
+        replace_document: bool | None = None,
+        overwrite_visual_descriptions: bool = False,
     ) -> int:
-        """Extract, embed, and upsert chunks for a single PDF."""
-        chunks = extract_pdf_chunks(pdf_path, metadata=metadata, chunk_size=chunk_size)
+        """Extract, (optionally) describe visuals, and upsert chunks for one PDF."""
+        use_describe_visuals = (
+            self.config.describe_visuals_on_ingest
+            if describe_visuals is None
+            else describe_visuals
+        )
+        use_replace_document = (
+            self.config.replace_document_on_ingest
+            if replace_document is None
+            else replace_document
+        )
+
+        chunks = extract_pdf_chunks(
+            pdf_path,
+            metadata=metadata,
+            chunk_size=chunk_size,
+            mineru_output_root=self.config.mineru_output_root,
+            describe_visuals=use_describe_visuals,
+            visual_description_model=self.config.visual_description_model,
+            visual_description_root=self.config.visual_description_root,
+            overwrite_visual_descriptions=overwrite_visual_descriptions,
+        )
+        if use_replace_document and chunks:
+            self.store.delete_document(chunks[0]["document_id"])
+
         return self.store.upsert_chunks(
             chunks,
             embedder=self.embedder,
             batch_size=self.config.upsert_batch_size,
         )
 
-    def ingest_directory(self, directory: Path, pattern: str = "*.pdf") -> tuple[int, int]:
+    def ingest_directory(
+        self,
+        directory: Path,
+        pattern: str = "*.pdf",
+        describe_visuals: bool | None = None,
+        replace_document: bool | None = None,
+        overwrite_visual_descriptions: bool = False,
+    ) -> tuple[int, int]:
         """Ingest all matching PDFs in a directory tree and return totals."""
         pdf_files = sorted(directory.glob(pattern))
         total_chunks = 0
         for pdf_file in pdf_files:
-            total_chunks += self.ingest_pdf(pdf_file)
+            total_chunks += self.ingest_pdf(
+                pdf_file,
+                describe_visuals=describe_visuals,
+                replace_document=replace_document,
+                overwrite_visual_descriptions=overwrite_visual_descriptions,
+            )
         return len(pdf_files), total_chunks
 
     def search(

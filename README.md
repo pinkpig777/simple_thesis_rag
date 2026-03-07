@@ -12,6 +12,13 @@ Primary entrypoints:
 - `src/pipelines/thesis_rag_pipeline.py`: Orchestration layer.
 - `app/ui/gradio_app.py`: Gradio UI over the same in-process pipeline.
 
+## New Features
+
+- Upload-first ingestion flow in the UI.
+- Automatic visual description for `image`, `table`, and `equation` during ingest.
+- Document-level replace on ingest (delete old points for the same `document_id`, then upsert).
+- Cached visual descriptions at `data/processed/visual_descriptions/<document_id>.json`.
+
 ## Current Defaults
 
 Default runtime settings (from `src/utils/config.py`):
@@ -20,6 +27,11 @@ Default runtime settings (from `src/utils/config.py`):
 - `embedding_model`: `text-embedding-3-small`
 - `embedding_dim`: `1536`
 - `chat_model`: `gpt-4o-mini`
+- `visual_description_model`: `gpt-4o-mini`
+- `mineru_output_root`: `data/interim/mineru_out`
+- `visual_description_root`: `data/processed/visual_descriptions`
+- `describe_visuals_on_ingest`: `true`
+- `replace_document_on_ingest`: `true`
 - `upsert_batch_size`: `100`
 - Qdrant remote mode: `localhost:6333`
 - Qdrant local mode: use `--qdrant-path <path>`
@@ -33,7 +45,11 @@ data/raw/<work_title>/<file>.pdf
 ```
 
 Chunk text and metadata are stored in Qdrant payloads (including `payload["text"]`).
-Text extraction is performed by MinerU.
+Text extraction is performed by MinerU. Visual descriptions are cached to:
+
+```text
+data/processed/visual_descriptions/<document_id>.json
+```
 
 ## Metadata Extraction Strategy
 
@@ -43,20 +59,23 @@ Metadata is primarily path-aware (`src/utils/metadata.py`):
 - Infers `document_type` from filename (`manuscript`, `published`, `slides`, `readme`, `paper`).
 - Supports optional PDF metadata fields (`/Title`, `/Author`, `/Subject`, `/CreationDate`) when provided by an ingestion adapter.
 - Derives `year` from PDF creation date first, then fallback heuristics.
-- Stores `source_path`, `source_folder`, and a path-based `document_id`.
+- Stores `source_path`, `source_folder`, and a content-hash `document_id`.
 
-Why path-based `document_id`:
+Why content-hash `document_id`:
 
-- Prevents collisions across files with the same filename (for example many `Manuscript.pdf` files).
+- Stable across UI upload temp paths (same PDF bytes map to same id).
+- Enables document-level replace/upsert without duplicating the same uploaded file.
 
 ## OpenAI API Usage
 
-OpenAI is used in two places:
+OpenAI is used in three places:
 
 1. Embeddings (`src/embeddings/openai_embedder.py`)
    - `client.embeddings.create(...)`
 2. Answer generation (`src/generation/answer_generator.py`)
    - `client.chat.completions.create(...)`
+3. Visual descriptions (`src/ingestion/visual_describer.py`)
+   - `client.chat.completions.create(...)` with image input
 
 `OPENAI_API_KEY` is required for `ingest`, `ingest-dir`, and `query`.
 It is not required for `setup`.
@@ -66,11 +85,13 @@ It is not required for `setup`.
 Ingestion workflow:
 
 1. Read PDF file(s).
-2. Extract page text with MinerU (`src/ingestion/pdf_ingestor.py`).
-3. Chunk text (word-based chunking).
-4. Build metadata and `document_id`.
-5. Call OpenAI embeddings API.
-6. Upsert vectors + payload to Qdrant.
+2. Run MinerU parse and persist artifacts under `data/interim/mineru_out/<document_id>/`.
+3. Build text chunks from MinerU content.
+4. Describe visual assets (`image`, `table`, `equation`) and build visual-description chunks.
+5. Build metadata and `document_id`.
+6. Delete existing points for `document_id` (replace mode).
+7. Call OpenAI embeddings API.
+8. Upsert vectors + payload to Qdrant.
 
 Query workflow:
 
@@ -86,10 +107,10 @@ Generation behavior:
 - LaTeX math notation is preserved when present.
 - Sources are listed separately by CLI with title and disambiguation fields when available.
 
-## Describe MinerU Figures/Tables with OpenAI
+## Visual Description Script (Standalone / Backfill)
 
-If you already ran MinerU and have `*_content_list.json` plus `images/`, you can
-generate vision descriptions and save them as a referential JSON index.
+Main ingestion already performs visual descriptions automatically.  
+Use this script when you want standalone generation/backfill from existing MinerU output.
 
 Example:
 
@@ -157,6 +178,8 @@ uv run --env-file .env python main.py \
 ```bash
 uv run --env-file .env python main.py \
   --qdrant-path ./storage/vectorstore/qdrant \
+  --mineru-output-root ./data/interim/mineru_out \
+  --visual-description-root ./data/processed/visual_descriptions \
   ingest-dir --dir ./data/raw --pattern '*/*.pdf'
 ```
 
@@ -178,9 +201,46 @@ uv run --env-file .env python app/ui/gradio_app.py
 
 In the UI:
 
-- Use **Settings** to pick local path/host/collection/model values.
-- Use **Ingest** tab for single-PDF or folder ingestion.
+- Use **Settings** to pick local path/host/collection/model values and MinerU/cache roots.
+- Use **Ingest** tab to upload one PDF or ingest a folder.
+- Keep **Describe visuals** and **Replace existing document** enabled for upload-first workflow.
 - Use **Query** tab for answer generation and source inspection.
+
+## App Usage (Step-by-Step)
+
+1) Launch app:
+
+```bash
+uv run --env-file .env python app/ui/gradio_app.py
+```
+
+2) In **Settings**:
+
+- Set `Qdrant Local Path` to `./storage/vectorstore/qdrant` (or use host/port mode).
+- Confirm `Collection` (default: `thesis_chunks_v2`).
+- Confirm model settings (`Embedding`, `Chat`, `Visual Description`).
+- Confirm:
+  - `MinerU Output Root` (default: `./data/interim/mineru_out`)
+  - `Visual Description Cache Root` (default: `./data/processed/visual_descriptions`)
+
+3) Click **Setup Collection** once.
+
+4) In **Ingest** tab:
+
+- Upload one PDF in **Upload PDF** (or provide a path in `PDF Path (fallback)`).
+- Keep these checked for the intended workflow:
+  - **Describe visuals (image/table/equation)**
+  - **Replace existing document in collection**
+- Click **Ingest PDF** and wait for completion status.
+
+5) In **Query** tab:
+
+- Ask a question, set `Top K`, and optional metadata filters.
+- Review the generated answer and retrieved source list.
+
+6) Optional directory ingest:
+
+- Use **Ingest Directory** with a glob pattern (default `*/*.pdf`) for batch indexing.
 
 ## Server Mode (Optional)
 

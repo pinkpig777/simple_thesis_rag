@@ -11,6 +11,8 @@ Primary entrypoints:
 - `app/cli/main.py`: CLI argument parsing and command handlers.
 - `src/pipelines/thesis_rag_pipeline.py`: Orchestration layer.
 - `app/ui/gradio_app.py`: Gradio UI over the same in-process pipeline.
+- `src/utils/pipeline_factory.py`: shared config normalization + pipeline construction used by both CLI and UI.
+- `src/utils/source_formatting.py`: shared source/citation formatting used by both CLI and UI.
 
 ## New Features
 
@@ -20,6 +22,8 @@ Primary entrypoints:
 - Cached visual descriptions at `data/processed/visual_descriptions/<document_id>.json`.
 - Canonical Phase 1 -> Phase 2 interface contract at `data/processed/phase1_contract/v1/<document_id>.json`.
 - Object-first runtime contract between modules (`Phase1Producer` -> `Phase2Indexer`).
+- Centralized runtime config defaults/normalization for both CLI and UI (`src/utils/pipeline_factory.py`).
+- Shared source formatting logic so CLI/UI source rendering stays consistent (`src/utils/source_formatting.py`).
 
 ## Current Defaults
 
@@ -38,6 +42,29 @@ Default runtime settings (from `src/utils/config.py`):
 - `upsert_batch_size`: `100`
 - Qdrant remote mode: `localhost:6333`
 - Qdrant local mode: use `--qdrant-path <path>`
+
+How defaults are applied:
+
+- CLI parser defaults come from `RAGConfig`.
+- UI settings default values come from `RAGConfig`.
+- Runtime normalization of UI/CLI overrides happens in `src/utils/pipeline_factory.py`.
+- Result: one source of truth for settings, fewer drift bugs between entrypoints.
+
+## Simplified Module Structure
+
+Core runtime flow:
+
+1. Entrypoint (`main.py` or `app/ui/gradio_app.py`)
+2. Shared config builder (`src/utils/pipeline_factory.py`)
+3. Pipeline orchestrator (`src/pipelines/thesis_rag_pipeline.py`)
+4. Phase 1 producer (`src/ingestion/pdf_ingestor.py`)
+5. Contract boundary (`src/contracts/phase1_to_phase2.py`)
+6. Phase 2 indexer/store (`src/indexing/phase2_indexer.py`, `src/indexing/qdrant_store.py`)
+7. Retrieval + generation (`src/retrieval/retriever.py`, `src/generation/answer_generator.py`)
+
+Shared presentation helpers:
+
+- `src/utils/source_formatting.py` is used by both CLI and UI to render source titles, labels, and markdown.
 
 ## Data Contract
 

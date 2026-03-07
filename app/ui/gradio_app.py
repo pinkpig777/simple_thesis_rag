@@ -5,6 +5,10 @@ import gradio as gr
 
 from src.pipelines.thesis_rag_pipeline import ThesisRAGPipeline
 from src.utils.config import RAGConfig
+from src.utils.pipeline_factory import build_pipeline
+
+
+DEFAULT_CONFIG = RAGConfig()
 
 
 def _to_int(value: Any, default: int) -> int:
@@ -41,21 +45,18 @@ def _build_pipeline(
     phase12_contract_root: str,
 ) -> ThesisRAGPipeline:
     """Create a pipeline from UI settings."""
-    config = RAGConfig(
-        qdrant_path=qdrant_path.strip() or None,
-        qdrant_host=qdrant_host.strip() or "localhost",
-        qdrant_port=_to_int(qdrant_port, 6333),
-        collection_name=collection.strip() or "thesis_chunks_v2",
-        embedding_model=embedding_model.strip() or "text-embedding-3-small",
-        chat_model=chat_model.strip() or "gpt-4o-mini",
-        visual_description_model=visual_model.strip() or "gpt-4o-mini",
-        mineru_output_root=mineru_output_root.strip() or "data/interim/mineru_out",
-        visual_description_root=(
-            visual_description_root.strip() or "data/processed/visual_descriptions"
-        ),
-        phase12_contract_root=phase12_contract_root.strip() or "data/processed/phase1_contract/v1",
+    return build_pipeline(
+        qdrant_path=qdrant_path,
+        qdrant_host=qdrant_host,
+        qdrant_port=qdrant_port,
+        collection_name=collection,
+        embedding_model=embedding_model,
+        chat_model=chat_model,
+        visual_description_model=visual_model,
+        mineru_output_root=mineru_output_root,
+        visual_description_root=visual_description_root,
+        phase12_contract_root=phase12_contract_root,
     )
-    return ThesisRAGPipeline(config=config)
 
 
 def _format_source_title(metadata: dict[str, Any]) -> str:
@@ -305,23 +306,25 @@ def build_demo() -> gr.Blocks:
                     value="./storage/vectorstore/qdrant",
                     info="Leave empty to use host/port mode.",
                 )
-                qdrant_host = gr.Textbox(label="Qdrant Host", value="localhost")
-                qdrant_port = gr.Number(label="Qdrant Port", value=6333, precision=0)
-                collection = gr.Textbox(label="Collection", value="thesis_chunks_v2")
-                embedding_model = gr.Textbox(label="Embedding Model", value="text-embedding-3-small")
-                chat_model = gr.Textbox(label="Chat Model", value="gpt-4o-mini")
-                visual_model = gr.Textbox(label="Visual Description Model", value="gpt-4o-mini")
+                qdrant_host = gr.Textbox(label="Qdrant Host", value=DEFAULT_CONFIG.qdrant_host)
+                qdrant_port = gr.Number(label="Qdrant Port", value=DEFAULT_CONFIG.qdrant_port, precision=0)
+                collection = gr.Textbox(label="Collection", value=DEFAULT_CONFIG.collection_name)
+                embedding_model = gr.Textbox(label="Embedding Model", value=DEFAULT_CONFIG.embedding_model)
+                chat_model = gr.Textbox(label="Chat Model", value=DEFAULT_CONFIG.chat_model)
+                visual_model = gr.Textbox(
+                    label="Visual Description Model", value=DEFAULT_CONFIG.visual_description_model
+                )
                 mineru_output_root = gr.Textbox(
                     label="MinerU Output Root",
-                    value="./data/interim/mineru_out",
+                    value=DEFAULT_CONFIG.mineru_output_root,
                 )
                 visual_description_root = gr.Textbox(
                     label="Visual Description Cache Root",
-                    value="./data/processed/visual_descriptions",
+                    value=DEFAULT_CONFIG.visual_description_root,
                 )
                 phase12_contract_root = gr.Textbox(
                     label="Phase1->Phase2 Contract Root",
-                    value="./data/processed/phase1_contract/v1",
+                    value=DEFAULT_CONFIG.phase12_contract_root,
                 )
 
                 setup_button = gr.Button("Setup Collection", variant="primary")

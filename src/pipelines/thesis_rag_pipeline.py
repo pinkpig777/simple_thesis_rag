@@ -65,6 +65,7 @@ class ThesisRAGPipeline:
             visual_description_model=self.config.visual_description_model,
             visual_description_root=self.config.visual_description_root,
             overwrite_visual_descriptions=overwrite_visual_descriptions,
+            phase12_contract_root=self.config.phase12_contract_root,
         )
         if use_replace_document and chunks:
             self.store.delete_document(chunks[0]["document_id"])

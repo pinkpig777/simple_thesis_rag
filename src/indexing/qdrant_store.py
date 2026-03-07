@@ -82,7 +82,8 @@ class QdrantStore:
         points: list[PointStruct] = []
         for chunk_index, chunk in enumerate(chunks):
             # Qdrant accepts only integer or UUID point IDs.
-            point_id = str(uuid5(NAMESPACE_URL, f"{chunk['document_id']}:{chunk_index}"))
+            point_key = str(chunk.get("chunk_id") or f"{chunk['document_id']}:{chunk_index}")
+            point_id = str(uuid5(NAMESPACE_URL, point_key))
             points.append(
                 PointStruct(
                     id=point_id,

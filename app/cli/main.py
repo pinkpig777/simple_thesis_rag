@@ -23,6 +23,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--visual-model", default="gpt-4o-mini")
     parser.add_argument("--mineru-output-root", default="data/interim/mineru_out")
     parser.add_argument("--visual-description-root", default="data/processed/visual_descriptions")
+    parser.add_argument("--phase12-contract-root", default="data/processed/phase1_contract/v1")
 
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -101,6 +102,7 @@ def _build_pipeline(args: argparse.Namespace) -> "ThesisRAGPipeline":
         visual_description_model=args.visual_model,
         mineru_output_root=args.mineru_output_root,
         visual_description_root=args.visual_description_root,
+        phase12_contract_root=args.phase12_contract_root,
     )
     return ThesisRAGPipeline(config=config)
 

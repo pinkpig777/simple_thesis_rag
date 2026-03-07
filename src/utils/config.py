@@ -13,6 +13,7 @@ class RAGConfig:
     visual_description_model: str = "gpt-4o-mini"
     mineru_output_root: str = "data/interim/mineru_out"
     visual_description_root: str = "data/processed/visual_descriptions"
+    phase12_contract_root: str = "data/processed/phase1_contract/v1"
     describe_visuals_on_ingest: bool = True
     replace_document_on_ingest: bool = True
     upsert_batch_size: int = 100

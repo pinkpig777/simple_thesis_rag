@@ -38,6 +38,7 @@ def _build_pipeline(
     visual_model: str,
     mineru_output_root: str,
     visual_description_root: str,
+    phase12_contract_root: str,
 ) -> ThesisRAGPipeline:
     """Create a pipeline from UI settings."""
     config = RAGConfig(
@@ -52,6 +53,7 @@ def _build_pipeline(
         visual_description_root=(
             visual_description_root.strip() or "data/processed/visual_descriptions"
         ),
+        phase12_contract_root=phase12_contract_root.strip() or "data/processed/phase1_contract/v1",
     )
     return ThesisRAGPipeline(config=config)
 
@@ -107,6 +109,7 @@ def setup_collection_ui(
     visual_model: str,
     mineru_output_root: str,
     visual_description_root: str,
+    phase12_contract_root: str,
 ) -> str:
     """Handle collection setup action from the UI."""
     try:
@@ -120,6 +123,7 @@ def setup_collection_ui(
             visual_model,
             mineru_output_root,
             visual_description_root,
+            phase12_contract_root,
         )
         created = pipeline.setup_collection()
         if created:
@@ -145,6 +149,7 @@ def ingest_pdf_ui(
     visual_model: str,
     mineru_output_root: str,
     visual_description_root: str,
+    phase12_contract_root: str,
 ) -> str:
     """Handle single-PDF ingestion action from the UI."""
     try:
@@ -162,6 +167,7 @@ def ingest_pdf_ui(
             visual_model,
             mineru_output_root,
             visual_description_root,
+            phase12_contract_root,
         )
         pipeline.setup_collection()
         count = pipeline.ingest_pdf(
@@ -191,6 +197,7 @@ def ingest_dir_ui(
     visual_model: str,
     mineru_output_root: str,
     visual_description_root: str,
+    phase12_contract_root: str,
 ) -> str:
     """Handle directory ingestion action from the UI."""
     try:
@@ -208,6 +215,7 @@ def ingest_dir_ui(
             visual_model,
             mineru_output_root,
             visual_description_root,
+            phase12_contract_root,
         )
         pipeline.setup_collection()
         file_count, chunk_count = pipeline.ingest_directory(
@@ -238,6 +246,7 @@ def query_ui(
     visual_model: str,
     mineru_output_root: str,
     visual_description_root: str,
+    phase12_contract_root: str,
 ) -> tuple[str, str]:
     """Handle question answering action from the UI."""
     try:
@@ -255,6 +264,7 @@ def query_ui(
             visual_model,
             mineru_output_root,
             visual_description_root,
+            phase12_contract_root,
         )
 
         filters: dict[str, Any] = {}
@@ -308,6 +318,10 @@ def build_demo() -> gr.Blocks:
                 visual_description_root = gr.Textbox(
                     label="Visual Description Cache Root",
                     value="./data/processed/visual_descriptions",
+                )
+                phase12_contract_root = gr.Textbox(
+                    label="Phase1->Phase2 Contract Root",
+                    value="./data/processed/phase1_contract/v1",
                 )
 
                 setup_button = gr.Button("Setup Collection", variant="primary")
@@ -386,6 +400,7 @@ def build_demo() -> gr.Blocks:
                 visual_model,
                 mineru_output_root,
                 visual_description_root,
+                phase12_contract_root,
             ],
             outputs=[setup_status],
         )
@@ -408,6 +423,7 @@ def build_demo() -> gr.Blocks:
                 visual_model,
                 mineru_output_root,
                 visual_description_root,
+                phase12_contract_root,
             ],
             outputs=[ingest_pdf_status],
         )
@@ -429,6 +445,7 @@ def build_demo() -> gr.Blocks:
                 visual_model,
                 mineru_output_root,
                 visual_description_root,
+                phase12_contract_root,
             ],
             outputs=[ingest_dir_status],
         )
@@ -451,6 +468,7 @@ def build_demo() -> gr.Blocks:
                 visual_model,
                 mineru_output_root,
                 visual_description_root,
+                phase12_contract_root,
             ],
             outputs=[answer_output, sources_output],
         )

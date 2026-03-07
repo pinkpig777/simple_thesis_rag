@@ -215,7 +215,13 @@ class Phase1Producer(Protocol):
 class Phase2Indexer(Protocol):
     """Runtime interface for any Phase 2 indexer implementation."""
 
-    def ingest(self, contract: Phase12Contract, *, replace_document: bool = True) -> Phase2IngestResult:
+    def ingest(
+        self,
+        contract: Phase12Contract,
+        *,
+        replace_document: bool = True,
+        contract_path: str | None = None,
+    ) -> Phase2IngestResult:
         """Consume a contract object and index it in Phase 2 storage."""
 
 

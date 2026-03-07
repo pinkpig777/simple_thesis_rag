@@ -18,6 +18,7 @@ Primary entrypoints:
 - Automatic visual description for `image`, `table`, and `equation` during ingest.
 - Document-level replace on ingest (delete old points for the same `document_id`, then upsert).
 - Cached visual descriptions at `data/processed/visual_descriptions/<document_id>.json`.
+- Canonical Phase 1 -> Phase 2 interface contract at `data/processed/phase1_contract/v1/<document_id>.json`.
 
 ## Current Defaults
 
@@ -30,6 +31,7 @@ Default runtime settings (from `src/utils/config.py`):
 - `visual_description_model`: `gpt-4o-mini`
 - `mineru_output_root`: `data/interim/mineru_out`
 - `visual_description_root`: `data/processed/visual_descriptions`
+- `phase12_contract_root`: `data/processed/phase1_contract/v1`
 - `describe_visuals_on_ingest`: `true`
 - `replace_document_on_ingest`: `true`
 - `upsert_batch_size`: `100`
@@ -49,6 +51,12 @@ Text extraction is performed by MinerU. Visual descriptions are cached to:
 
 ```text
 data/processed/visual_descriptions/<document_id>.json
+```
+
+Phase 1 -> Phase 2 normalized contract is stored at:
+
+```text
+data/processed/phase1_contract/v1/<document_id>.json
 ```
 
 ## Metadata Extraction Strategy
@@ -88,10 +96,12 @@ Ingestion workflow:
 2. Run MinerU parse and persist artifacts under `data/interim/mineru_out/<document_id>/`.
 3. Build text chunks from MinerU content.
 4. Describe visual assets (`image`, `table`, `equation`) and build visual-description chunks.
-5. Build metadata and `document_id`.
-6. Delete existing points for `document_id` (replace mode).
-7. Call OpenAI embeddings API.
-8. Upsert vectors + payload to Qdrant.
+5. Build and validate a Phase 1 -> Phase 2 contract JSON.
+6. Persist contract to `data/processed/phase1_contract/v1/<document_id>.json`.
+7. Phase 2 reads the contract and materializes Qdrant payload chunks.
+8. Delete existing points for `document_id` (replace mode).
+9. Call OpenAI embeddings API.
+10. Upsert vectors + payload to Qdrant.
 
 Query workflow:
 
@@ -106,6 +116,112 @@ Generation behavior:
 - The answer omits inline citation markers like `(Manuscript, p.5)`.
 - LaTeX math notation is preserved when present.
 - Sources are listed separately by CLI with title and disambiguation fields when available.
+
+## Phase 1 -> Phase 2 Interface Contract (Detailed)
+
+Contract module:
+
+- `src/contracts/phase1_to_phase2.py`
+
+Schema version:
+
+- `1.0`
+
+Primary purpose:
+
+- Decouple parsing/enrichment (Phase 1) from indexing/storage (Phase 2) with one canonical JSON artifact per document.
+
+### Contract File Location
+
+```text
+data/processed/phase1_contract/v1/<document_id>.json
+```
+
+### Top-Level Structure
+
+```json
+{
+  "schema_version": "1.0",
+  "generated_at": "ISO-8601 UTC timestamp",
+  "producer": {
+    "name": "simple-rag",
+    "phase": "phase1",
+    "component": "src.ingestion.pdf_ingestor"
+  },
+  "document": { "...doc-level metadata..." },
+  "assets": [ "...visual assets..." ],
+  "chunks": [ "...normalized ingest units..." ]
+}
+```
+
+### `document` Object (Required Core Fields)
+
+- `document_id` (required): stable content-hash document id.
+- `source_pdf_path` (required): absolute path to the ingested PDF.
+- Other metadata copied for retrieval/index filtering:
+  - `title`, `work_title`, `document_type`, `author`, `authors`, `year`, `university`
+  - `filename`, `source_path`, `source_folder`, `dataset_split`, `page_count`
+  - `mineru_output_dir`, `mineru_content_list_path`
+
+### `assets[]` (Visual Reference Layer)
+
+Each asset row corresponds to one visual item (image/table/equation):
+
+- `asset_id` (required, deterministic)
+- `asset_type` (`image` | `table` | `equation`)
+- `page_number`
+- `content_list_path`, `item_index`
+- `image_rel_path`, `image_path`
+- `context`
+- `description`, `description_model`, `described_at`
+
+`assets[]` can be empty when visual description is disabled.
+
+### `chunks[]` (Phase 2 Ingestion Units)
+
+Each chunk must contain:
+
+- `chunk_id` (required, deterministic)
+- `chunk_type` (`text` | `visual_description`)
+- `text` (required, non-empty)
+- `page_number`
+- `chunk_index`
+- `asset_id` (required for `visual_description`, null for plain text)
+- `char_count`
+- `metadata` (required object; must contain matching `document_id`)
+
+### Validation Rules Enforced
+
+The contract validator enforces:
+
+- Required top-level keys exist.
+- `schema_version == "1.0"`.
+- `document.document_id` and `document.source_pdf_path` are non-empty.
+- `assets[].asset_id` values are unique.
+- `chunks[]` is non-empty.
+- `chunks[].chunk_id` values are unique.
+- `chunks[].chunk_type` is one of `text` or `visual_description`.
+- `chunks[].text` is non-empty.
+- `chunks[].metadata.document_id` matches `document.document_id`.
+- `visual_description` chunks must reference a valid `asset_id`.
+
+### Phase 2 Materialization (Contract -> Qdrant Payload)
+
+Phase 2 reads the contract and converts each `chunks[]` entry to a Qdrant payload:
+
+- Keeps chunk core fields (`chunk_id`, `chunk_type`, `text`, `page_number`, `chunk_index`, `char_count`).
+- Merges `metadata` into top-level payload (to preserve current query code path).
+- Enriches visual chunks from `assets[]` when available (`visual_type`, `image_path`, etc.).
+- Adds contract tracking fields:
+  - `phase12_schema_version`
+  - `phase12_generated_at`
+  - `phase12_contract_path`
+
+### Why This Boundary Matters
+
+- Clear ownership: Phase 1 writes canonical data; Phase 2 only consumes canonical data.
+- Easier replay/debug: inspect one contract file to understand exactly what is indexed.
+- Safer evolution: new fields can be added without breaking existing ingestion consumers.
 
 ## Visual Description Script (Standalone / Backfill)
 
@@ -180,6 +296,7 @@ uv run --env-file .env python main.py \
   --qdrant-path ./storage/vectorstore/qdrant \
   --mineru-output-root ./data/interim/mineru_out \
   --visual-description-root ./data/processed/visual_descriptions \
+  --phase12-contract-root ./data/processed/phase1_contract/v1 \
   ingest-dir --dir ./data/raw --pattern '*/*.pdf'
 ```
 
@@ -222,6 +339,7 @@ uv run --env-file .env python app/ui/gradio_app.py
 - Confirm:
   - `MinerU Output Root` (default: `./data/interim/mineru_out`)
   - `Visual Description Cache Root` (default: `./data/processed/visual_descriptions`)
+  - `Phase1->Phase2 Contract Root` (default: `./data/processed/phase1_contract/v1`)
 
 3) Click **Setup Collection** once.
 

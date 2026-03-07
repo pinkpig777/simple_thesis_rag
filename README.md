@@ -190,6 +190,99 @@ Each chunk must contain:
 - `char_count`
 - `metadata` (required object; must contain matching `document_id`)
 
+### Template JSON (Copy/Paste Starter)
+
+Use this as a concrete contract template for tests, mocks, or integration docs:
+
+```json
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-03-07T12:00:00Z",
+  "producer": {
+    "name": "simple-rag",
+    "phase": "phase1",
+    "component": "src.ingestion.pdf_ingestor"
+  },
+  "document": {
+    "document_id": "a3f8c2...content_hash...",
+    "source_pdf_path": "/abs/path/data/raw/My Paper/Manuscript.pdf",
+    "filename": "Manuscript.pdf",
+    "title": "My Paper (manuscript)",
+    "work_title": "My Paper",
+    "document_type": "manuscript",
+    "author": "Jane Doe",
+    "authors": ["Jane Doe", "John Doe"],
+    "year": 2024,
+    "university": "Unknown",
+    "page_count": 42,
+    "source_path": "data/raw/My Paper/Manuscript.pdf",
+    "source_folder": "data/raw/My Paper",
+    "dataset_split": "raw",
+    "mineru_output_dir": "/abs/path/data/interim/mineru_out/a3f8c2...",
+    "mineru_content_list_path": "/abs/path/data/interim/mineru_out/a3f8c2.../auto/Manuscript_content_list.json"
+  },
+  "assets": [
+    {
+      "asset_id": "asset_eq_001",
+      "asset_type": "equation",
+      "page_number": 11,
+      "content_list_path": "/abs/path/data/interim/mineru_out/a3f8c2.../auto/Manuscript_content_list.json",
+      "item_index": 132,
+      "image_rel_path": "images/7cb9....jpg",
+      "image_path": "/abs/path/data/interim/mineru_out/a3f8c2.../auto/images/7cb9....jpg",
+      "context": {
+        "equation_latex": "$$y = c + i$$"
+      },
+      "description": "Equation describing resource constraint.",
+      "description_model": "gpt-4o-mini",
+      "described_at": "2026-03-07T12:01:00Z"
+    }
+  ],
+  "chunks": [
+    {
+      "chunk_id": "chunk_text_001",
+      "chunk_type": "text",
+      "text": "This section introduces the model assumptions...",
+      "page_number": 3,
+      "chunk_index": 0,
+      "asset_id": null,
+      "char_count": 58,
+      "metadata": {
+        "document_id": "a3f8c2...content_hash...",
+        "title": "My Paper (manuscript)",
+        "work_title": "My Paper",
+        "document_type": "manuscript",
+        "author": "Jane Doe",
+        "year": 2024
+      }
+    },
+    {
+      "chunk_id": "chunk_visual_001",
+      "chunk_type": "visual_description",
+      "text": "Equation description\nEquation describing resource constraint.",
+      "page_number": 11,
+      "chunk_index": 132,
+      "asset_id": "asset_eq_001",
+      "char_count": 64,
+      "metadata": {
+        "document_id": "a3f8c2...content_hash...",
+        "title": "My Paper (manuscript)",
+        "work_title": "My Paper",
+        "document_type": "manuscript",
+        "author": "Jane Doe",
+        "year": 2024,
+        "visual_type": "equation",
+        "image_rel_path": "images/7cb9....jpg",
+        "image_path": "/abs/path/data/interim/mineru_out/a3f8c2.../auto/images/7cb9....jpg",
+        "visual_item_index": 132,
+        "description_model": "gpt-4o-mini",
+        "described_at": "2026-03-07T12:01:00Z"
+      }
+    }
+  ]
+}
+```
+
 ### Validation Rules Enforced
 
 The contract validator enforces:

@@ -144,6 +144,39 @@ Current implementation:
 - Phase 1 producer: `src/ingestion/pdf_ingestor.py` -> `MineruPhase1Producer`
 - Phase 2 indexer: `src/indexing/phase2_indexer.py` -> `QdrantPhase2Indexer`
 
+### Contract vs Interface (Important Distinction)
+
+This project uses both, and they solve different problems:
+
+- **Object contract** (`Phase12Contract`):
+  - Defines the **data shape** exchanged across the phase boundary.
+  - Enforces field-level validity (required keys, referential integrity, etc.).
+  - Lives in runtime memory and can be serialized to JSON.
+- **Module interface / protocol** (`Phase1Producer`, `Phase2Indexer`):
+  - Defines the **behavioral boundary** between modules (method signatures).
+  - Allows swapping implementations without changing callers.
+  - Example: current producer is MinerU-based; future producer could be another parser.
+
+In short:
+
+- Contract answers: **\"what data is valid?\"**
+- Interface answers: **\"who calls what, and what is returned?\"**
+
+### Terminology Clarification
+
+To avoid confusion in design discussions:
+
+- **Phase boundary**: conceptual boundary between Phase 1 and Phase 2.
+- **Interface**: callable protocol at that boundary.
+- **Contract**: typed data object crossing that boundary.
+- **Contract snapshot**: JSON file persisted for replay/debug (`data/processed/phase1_contract/v1/...`).
+
+Runtime path is object-first:
+
+1. Phase 1 produces `Phase12Contract` object.
+2. Phase 2 consumes the object directly.
+3. Snapshot JSON is optional persistence for observability/reproducibility.
+
 ### Contract File Location
 
 ```text

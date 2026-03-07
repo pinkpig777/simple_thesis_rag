@@ -19,6 +19,7 @@ Primary entrypoints:
 - Document-level replace on ingest (delete old points for the same `document_id`, then upsert).
 - Cached visual descriptions at `data/processed/visual_descriptions/<document_id>.json`.
 - Canonical Phase 1 -> Phase 2 interface contract at `data/processed/phase1_contract/v1/<document_id>.json`.
+- Object-first runtime contract between modules (`Phase1Producer` -> `Phase2Indexer`).
 
 ## Current Defaults
 
@@ -96,9 +97,9 @@ Ingestion workflow:
 2. Run MinerU parse and persist artifacts under `data/interim/mineru_out/<document_id>/`.
 3. Build text chunks from MinerU content.
 4. Describe visual assets (`image`, `table`, `equation`) and build visual-description chunks.
-5. Build and validate a Phase 1 -> Phase 2 contract JSON.
-6. Persist contract to `data/processed/phase1_contract/v1/<document_id>.json`.
-7. Phase 2 reads the contract and materializes Qdrant payload chunks.
+5. Build and validate a Phase 1 -> Phase 2 contract object.
+6. Persist a JSON snapshot to `data/processed/phase1_contract/v1/<document_id>.json` (for replay/debug).
+7. Phase 2 consumes the contract object directly and materializes Qdrant payload chunks.
 8. Delete existing points for `document_id` (replace mode).
 9. Call OpenAI embeddings API.
 10. Upsert vectors + payload to Qdrant.
@@ -129,7 +130,19 @@ Schema version:
 
 Primary purpose:
 
-- Decouple parsing/enrichment (Phase 1) from indexing/storage (Phase 2) with one canonical JSON artifact per document.
+- Decouple parsing/enrichment (Phase 1) from indexing/storage (Phase 2) with one canonical contract object, plus an optional JSON snapshot per document.
+
+### Runtime Interface (Object-Level)
+
+Interfaces are defined in `src/contracts/phase1_to_phase2.py`:
+
+- `Phase1Producer.produce(request: Phase1Request) -> Phase12Contract`
+- `Phase2Indexer.ingest(contract: Phase12Contract, replace_document: bool) -> Phase2IngestResult`
+
+Current implementation:
+
+- Phase 1 producer: `src/ingestion/pdf_ingestor.py` -> `MineruPhase1Producer`
+- Phase 2 indexer: `src/indexing/phase2_indexer.py` -> `QdrantPhase2Indexer`
 
 ### Contract File Location
 
@@ -146,7 +159,7 @@ data/processed/phase1_contract/v1/<document_id>.json
   "producer": {
     "name": "simple-rag",
     "phase": "phase1",
-    "component": "src.ingestion.pdf_ingestor"
+    "component": "src.ingestion.pdf_ingestor.MineruPhase1Producer"
   },
   "document": { "...doc-level metadata..." },
   "assets": [ "...visual assets..." ],
@@ -201,7 +214,7 @@ Use this as a concrete contract template for tests, mocks, or integration docs:
   "producer": {
     "name": "simple-rag",
     "phase": "phase1",
-    "component": "src.ingestion.pdf_ingestor"
+    "component": "src.ingestion.pdf_ingestor.MineruPhase1Producer"
   },
   "document": {
     "document_id": "a3f8c2...content_hash...",
@@ -300,7 +313,7 @@ The contract validator enforces:
 
 ### Phase 2 Materialization (Contract -> Qdrant Payload)
 
-Phase 2 reads the contract and converts each `chunks[]` entry to a Qdrant payload:
+Phase 2 consumes the contract object and converts each `chunks[]` entry to a Qdrant payload:
 
 - Keeps chunk core fields (`chunk_id`, `chunk_type`, `text`, `page_number`, `chunk_index`, `char_count`).
 - Merges `metadata` into top-level payload (to preserve current query code path).

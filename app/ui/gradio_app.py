@@ -6,6 +6,7 @@ import gradio as gr
 from src.pipelines.thesis_rag_pipeline import ThesisRAGPipeline
 from src.utils.config import RAGConfig
 from src.utils.pipeline_factory import build_pipeline
+from src.utils.source_formatting import format_sources_markdown
 
 
 DEFAULT_CONFIG = RAGConfig()
@@ -57,47 +58,6 @@ def _build_pipeline(
         visual_description_root=visual_description_root,
         phase12_contract_root=phase12_contract_root,
     )
-
-
-def _format_source_title(metadata: dict[str, Any]) -> str:
-    """Build a readable source title with disambiguation for generic names."""
-    title = str(metadata.get("title") or "Unknown")
-    work_title = str(metadata.get("work_title") or "")
-    document_type = str(metadata.get("document_type") or "")
-
-    generic_titles = {"manuscript", "paper", "readme", "slides", "published", "unknown"}
-    normalized_title = title.strip().lower()
-    if work_title and normalized_title in generic_titles:
-        title = f"{work_title} ({document_type})" if document_type else work_title
-
-    return title
-
-
-def _format_sources_markdown(sources: list[dict[str, Any]]) -> str:
-    """Format retrieved sources in a readable markdown block."""
-    if not sources:
-        return "No sources."
-
-    lines = ["### Retrieved Sources", ""]
-    for rank, source in enumerate(sources, start=1):
-        metadata = source["metadata"]
-        title = _format_source_title(metadata)
-        filename = str(metadata.get("filename") or "")
-        source_path = str(metadata.get("source_path") or "")
-        document_id = str(metadata.get("document_id") or "Unknown")
-        short_id = document_id[:8] if len(document_id) >= 8 else document_id
-        page_number = metadata.get("page_number", "Unknown")
-        score = float(source["score"])
-
-        lines.append(f"**[{rank}] {title}**")
-        lines.append(f"- Score: `{score:.3f}` | Page: `{page_number}` | Doc: `{short_id}`")
-        if filename:
-            lines.append(f"- File: `{filename}`")
-        if source_path:
-            lines.append(f"- Path: `{source_path}`")
-        lines.append("")
-
-    return "\n".join(lines).strip()
 
 
 def setup_collection_ui(
@@ -286,7 +246,7 @@ def query_ui(
             top_k=_to_int(top_k, 5),
         )
 
-        sources = _format_sources_markdown(result["sources"])
+        sources = format_sources_markdown(result["sources"])
         return result["answer"], sources
     except Exception as exc:
         return f"Error: {exc}", ""

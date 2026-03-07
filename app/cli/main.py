@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 
 from src.utils.config import RAGConfig
 from src.utils.pipeline_factory import build_pipeline
+from src.utils.source_formatting import format_source_label
 
 if TYPE_CHECKING:
     from src.pipelines.thesis_rag_pipeline import ThesisRAGPipeline
@@ -132,37 +133,6 @@ def _filters_from_args(args: argparse.Namespace) -> dict[str, Any] | None:
     return filters or None
 
 
-def _format_source_label(metadata: dict[str, Any]) -> str:
-    """Build a readable source label with disambiguating metadata."""
-    title = str(metadata.get("title") or "Unknown")
-    work_title = str(metadata.get("work_title") or "")
-    document_type = str(metadata.get("document_type") or "")
-    filename = str(metadata.get("filename") or "")
-    source_path = str(metadata.get("source_path") or "")
-    document_id = str(metadata.get("document_id") or "Unknown")
-
-    # For generic titles like "Manuscript", prefer a fuller work title when available.
-    generic_titles = {"manuscript", "paper", "readme", "slides", "published", "unknown"}
-    normalized_title = title.strip().lower()
-    if work_title and normalized_title in generic_titles:
-        if document_type:
-            title = f"{work_title} ({document_type})"
-        else:
-            title = work_title
-
-    short_id = document_id[:8] if len(document_id) >= 8 else document_id
-    extras = [
-        f"path: {source_path}" if source_path else "",
-        f"file: {filename}" if filename else "",
-        f"doc: {short_id}" if short_id else "",
-    ]
-    extras = [extra for extra in extras if extra]
-
-    if extras:
-        return f"{title} | " + " | ".join(extras)
-    return title
-
-
 def main(argv: Sequence[str] | None = None) -> int:
     """Run the CLI and return a process-style exit code."""
     parser = build_parser()
@@ -213,7 +183,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             for source in result["sources"]:
                 metadata = source["metadata"]
                 print(
-                    f"- {_format_source_label(metadata)} (p.{metadata['page_number']}), "
+                    f"- {format_source_label(metadata)} (p.{metadata['page_number']}), "
                     f"score: {source['score']:.3f}"
                 )
             return 0

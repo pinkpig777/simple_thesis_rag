@@ -7,7 +7,7 @@ import json
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Mapping, Protocol, Sequence
+from typing import Any, Mapping, Protocol
 
 
 PHASE12_SCHEMA_VERSION = "1.0"
@@ -49,11 +49,16 @@ class Phase12Document:
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize document object to contract dictionary form."""
-        return {
+        data = {
             "document_id": self.document_id,
             "source_pdf_path": self.source_pdf_path,
-            **self.extra,
         }
+        # Keep contract-reserved keys authoritative.
+        for key, value in self.extra.items():
+            if key in {"document_id", "source_pdf_path"}:
+                continue
+            data[key] = value
+        return data
 
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> "Phase12Document":

@@ -74,14 +74,20 @@ class ThesisRAGPipeline:
             metadata=metadata,
             chunk_size=chunk_size,
             describe_visuals=use_describe_visuals,
-            visual_types=("image", "table", "equation"),
+            visual_types=tuple(self.config.visual_types),
             overwrite_visual_descriptions=overwrite_visual_descriptions,
         )
-        contract, contract_path = self.phase1_producer.produce_and_persist(request)
+        contract_path: str | None = None
+        if self.config.persist_phase12_snapshot_on_ingest:
+            contract, persisted_path = self.phase1_producer.produce_and_persist(request)
+            contract_path = str(persisted_path)
+        else:
+            contract = self.phase1_producer.produce(request)
+
         result = self.phase2_indexer.ingest(
             contract,
             replace_document=use_replace_document,
-            contract_path=str(contract_path),
+            contract_path=contract_path,
         )
         return result.chunk_count
 

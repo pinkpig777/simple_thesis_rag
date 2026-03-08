@@ -1,3 +1,4 @@
+import re
 from typing import Any, Sequence
 
 from typing import TYPE_CHECKING
@@ -7,6 +8,7 @@ if TYPE_CHECKING:
 
 
 class AnswerGenerator:
+    SOURCE_TAG_PATTERN = re.compile(r"\[S(\d+)\]")
     SYSTEM_PROMPT = (
         "You are a helpful research assistant that answers questions based on thesis documents. "
         "Write a clear answer with inline evidence tags. "
@@ -33,8 +35,16 @@ class AnswerGenerator:
             self._client = OpenAI()
         return self._client
 
+    @classmethod
+    def _extract_source_tag_ids(cls, text: str) -> set[int]:
+        """Extract numeric source tag ids from answer text (e.g., [S1], [S2])."""
+        source_ids: set[int] = set()
+        for match in cls.SOURCE_TAG_PATTERN.finditer(text):
+            source_ids.add(int(match.group(1)))
+        return source_ids
+
     def generate(self, query: str, context_chunks: Sequence[dict[str, Any]]) -> str:
-        """Generate a clean answer from retrieved context chunks."""
+        """Generate a cited answer and validate citation tags against provided sources."""
         if not context_chunks:
             return "I could not find relevant sources to answer that question."
 
@@ -69,4 +79,15 @@ class AnswerGenerator:
             temperature=0.3,
         )
         content = response.choices[0].message.content
-        return content.strip() if content else ""
+        answer = content.strip() if content else ""
+        tag_ids = self._extract_source_tag_ids(answer)
+        max_source_id = len(context_chunks)
+        invalid_tag_ids = sorted(tag_id for tag_id in tag_ids if tag_id < 1 or tag_id > max_source_id)
+        if invalid_tag_ids:
+            allowed_range = f"[S1]..[S{max_source_id}]"
+            raise ValueError(
+                "Generated answer contains invalid source tags: "
+                f"{', '.join(f'[S{tag_id}]' for tag_id in invalid_tag_ids)}; "
+                f"allowed range is {allowed_range}."
+            )
+        return answer

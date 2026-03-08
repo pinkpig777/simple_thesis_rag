@@ -12,6 +12,8 @@ Local-first RAG system for thesis PDFs with MinerU parsing, OpenAI enrichment, a
 - Answers questions with retrieval-augmented generation
 - Returns inline citations in answer text using `[S#]` tags
 - Validates citation tags against retrieved source count before returning answer
+- Shows visual preview cards for cited image/table/equation evidence in UI
+- Adds experimental local PDF page deep-links in source evidence
 
 ## Quickstart
 
@@ -65,6 +67,12 @@ Recommended first run:
 2. Click **Setup Collection**.
 3. Ingest one PDF (or ingest directory).
 4. Run query and inspect cited evidence in the Sources and Visual Evidence panels.
+
+Notes:
+
+- Visual previews are shown as gallery cards with `[S#]`, type, and page.
+- PDF page links are best-effort (`file://...#page=N`) and depend on your local viewer support.
+- PDF page highlight is not implemented yet (planned next iteration).
 
 ## Core Entrypoints
 

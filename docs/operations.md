@@ -74,8 +74,9 @@ Recommended first-run path:
 Query tab outputs:
 
 - **Answer**: inline citation tags (`[S#]`) in generated text.
-- **Sources**: ranked evidence cards with page, score, path, and text snippet.
-- **Cited Visual Evidence**: image gallery for cited visual chunks (when available).
+- **Sources**: ranked evidence cards with page, score, path, text snippet, and experimental PDF page links.
+- **Visual Preview Cards (Cited Evidence)**: gallery cards for image/table/equation chunks (when image files are available).
+- PDF page highlight is not implemented yet; current link behavior is deep-link only when viewer supports `#page=N`.
 
 ## Default Runtime Settings
 

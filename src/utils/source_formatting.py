@@ -40,6 +40,19 @@ def format_source_label(metadata: dict[str, Any]) -> str:
     return f"{title} | " + " | ".join(extras)
 
 
+def _build_pdf_page_link(source_pdf_path: str, page_number: Any) -> str | None:
+    """Build a local file URI with page anchor for PDF viewers that support it."""
+    if not source_pdf_path:
+        return None
+    if not isinstance(page_number, int) or page_number < 1:
+        return None
+    try:
+        file_uri = Path(source_pdf_path).resolve().as_uri()
+    except ValueError:
+        return None
+    return f"{file_uri}#page={page_number}"
+
+
 def format_sources_markdown(sources: Sequence[dict[str, Any]]) -> str:
     """Return a ranked markdown block for UI source rendering."""
     if not sources:
@@ -74,6 +87,9 @@ def format_sources_markdown(sources: Sequence[dict[str, Any]]) -> str:
             lines.append(f"- Path: `{source_path}`")
         if source_pdf_path:
             lines.append(f"- PDF: `{source_pdf_path}`")
+            pdf_page_link = _build_pdf_page_link(source_pdf_path, page_number)
+            if pdf_page_link:
+                lines.append(f"- PDF page (experimental): [open page {page_number}]({pdf_page_link})")
         if image_path:
             lines.append(f"- Image: `{image_path}`")
         if preview:
@@ -83,15 +99,21 @@ def format_sources_markdown(sources: Sequence[dict[str, Any]]) -> str:
     return "\n".join(lines).strip()
 
 
-def collect_cited_image_paths(sources: Sequence[dict[str, Any]]) -> list[str]:
-    """Collect existing image paths from retrieved sources for UI evidence gallery."""
-    image_paths: list[str] = []
+def build_visual_preview_cards(sources: Sequence[dict[str, Any]]) -> list[tuple[str, str]]:
+    """Build (image_path, caption) cards for cited visual evidence in the UI."""
+    cards: list[tuple[str, str]] = []
     seen: set[str] = set()
-    for source in sources:
+    for rank, source in enumerate(sources, start=1):
         image_path = str(source.get("image_path") or "").strip()
         if not image_path or image_path in seen:
             continue
-        if Path(image_path).exists():
-            seen.add(image_path)
-            image_paths.append(image_path)
-    return image_paths
+        if not Path(image_path).exists():
+            continue
+        metadata = source.get("metadata") or {}
+        title = format_source_title(metadata)
+        page_number = metadata.get("page_number", "Unknown")
+        visual_type = str(source.get("visual_type") or "visual")
+        caption = f"[S{rank}] {visual_type} | p.{page_number} | {title}"
+        cards.append((image_path, caption))
+        seen.add(image_path)
+    return cards

@@ -435,6 +435,7 @@ def phase12_contract_to_qdrant_chunks(
                 payload.setdefault("described_at", asset.get("described_at"))
 
         payload.setdefault("document_id", document.get("document_id"))
+        payload.setdefault("source_pdf_path", document.get("source_pdf_path"))
         qdrant_chunks.append(payload)
 
     return qdrant_chunks

@@ -6,7 +6,7 @@ import gradio as gr
 from src.pipelines.thesis_rag_pipeline import ThesisRAGPipeline
 from src.utils.config import RAGConfig
 from src.utils.pipeline_factory import build_pipeline
-from src.utils.source_formatting import collect_cited_image_paths, format_sources_markdown
+from src.utils.source_formatting import build_visual_preview_cards, format_sources_markdown
 
 
 DEFAULT_CONFIG = RAGConfig()
@@ -208,7 +208,7 @@ def query_ui(
     mineru_output_root: str,
     visual_description_root: str,
     phase12_contract_root: str,
-) -> tuple[str, str, list[str]]:
+) -> tuple[str, str, list[tuple[str, str]]]:
     """Handle question answering action from the UI."""
     try:
         user_question = question.strip()
@@ -247,8 +247,8 @@ def query_ui(
         )
 
         sources = format_sources_markdown(result["sources"])
-        cited_images = collect_cited_image_paths(result["sources"])
-        return result["answer"], sources, cited_images
+        visual_cards = build_visual_preview_cards(result["sources"])
+        return result["answer"], sources, visual_cards
     except Exception as exc:
         return f"Error: {exc}", "", []
 
@@ -352,7 +352,7 @@ def build_demo() -> gr.Blocks:
                     answer_output = gr.Markdown(label="Answer")
                     sources_output = gr.Markdown(label="Sources")
                     cited_images_output = gr.Gallery(
-                        label="Cited Visual Evidence",
+                        label="Visual Preview Cards (Cited Evidence)",
                         columns=4,
                         height="auto",
                     )

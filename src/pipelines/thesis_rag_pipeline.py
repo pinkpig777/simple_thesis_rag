@@ -1,10 +1,12 @@
 from pathlib import Path
 from typing import Any
 
+from src.contracts.phase1_to_phase2 import Phase1Request
 from src.embeddings.openai_embedder import OpenAIEmbedder
 from src.generation.answer_generator import AnswerGenerator
+from src.indexing.phase2_indexer import QdrantPhase2Indexer
 from src.indexing.qdrant_store import QdrantStore
-from src.ingestion.pdf_ingestor import extract_pdf_chunks
+from src.ingestion.pdf_ingestor import MineruPhase1Producer
 from src.retrieval.retriever import Retriever
 from src.utils.config import RAGConfig
 
@@ -24,6 +26,17 @@ class ThesisRAGPipeline:
             port=self.config.qdrant_port,
             collection_name=self.config.collection_name,
             embedding_dim=self.config.embedding_dim,
+        )
+        self.phase1_producer = MineruPhase1Producer(
+            mineru_output_root=self.config.mineru_output_root,
+            visual_description_model=self.config.visual_description_model,
+            visual_description_root=self.config.visual_description_root,
+            phase12_contract_root=self.config.phase12_contract_root,
+        )
+        self.phase2_indexer = QdrantPhase2Indexer(
+            store=self.store,
+            embedder=self.embedder,
+            batch_size=self.config.upsert_batch_size,
         )
         self.retriever = Retriever(store=self.store, embedder=self.embedder)
         self.answer_generator = AnswerGenerator(
@@ -56,24 +69,27 @@ class ThesisRAGPipeline:
             else replace_document
         )
 
-        chunks = extract_pdf_chunks(
-            pdf_path,
+        request = Phase1Request(
+            pdf_path=pdf_path,
             metadata=metadata,
             chunk_size=chunk_size,
-            mineru_output_root=self.config.mineru_output_root,
             describe_visuals=use_describe_visuals,
-            visual_description_model=self.config.visual_description_model,
-            visual_description_root=self.config.visual_description_root,
+            visual_types=tuple(self.config.visual_types),
             overwrite_visual_descriptions=overwrite_visual_descriptions,
         )
-        if use_replace_document and chunks:
-            self.store.delete_document(chunks[0]["document_id"])
+        contract_path: str | None = None
+        if self.config.persist_phase12_snapshot_on_ingest:
+            contract, persisted_path = self.phase1_producer.produce_and_persist(request)
+            contract_path = str(persisted_path)
+        else:
+            contract = self.phase1_producer.produce(request)
 
-        return self.store.upsert_chunks(
-            chunks,
-            embedder=self.embedder,
-            batch_size=self.config.upsert_batch_size,
+        result = self.phase2_indexer.ingest(
+            contract,
+            replace_document=use_replace_document,
+            contract_path=contract_path,
         )
+        return result.chunk_count
 
     def ingest_directory(
         self,

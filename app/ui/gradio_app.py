@@ -5,6 +5,11 @@ import gradio as gr
 
 from src.pipelines.thesis_rag_pipeline import ThesisRAGPipeline
 from src.utils.config import RAGConfig
+from src.utils.pipeline_factory import build_pipeline
+from src.utils.source_formatting import format_sources_markdown
+
+
+DEFAULT_CONFIG = RAGConfig()
 
 
 def _to_int(value: Any, default: int) -> int:
@@ -38,63 +43,21 @@ def _build_pipeline(
     visual_model: str,
     mineru_output_root: str,
     visual_description_root: str,
+    phase12_contract_root: str,
 ) -> ThesisRAGPipeline:
     """Create a pipeline from UI settings."""
-    config = RAGConfig(
-        qdrant_path=qdrant_path.strip() or None,
-        qdrant_host=qdrant_host.strip() or "localhost",
-        qdrant_port=_to_int(qdrant_port, 6333),
-        collection_name=collection.strip() or "thesis_chunks_v2",
-        embedding_model=embedding_model.strip() or "text-embedding-3-small",
-        chat_model=chat_model.strip() or "gpt-4o-mini",
-        visual_description_model=visual_model.strip() or "gpt-4o-mini",
-        mineru_output_root=mineru_output_root.strip() or "data/interim/mineru_out",
-        visual_description_root=(
-            visual_description_root.strip() or "data/processed/visual_descriptions"
-        ),
+    return build_pipeline(
+        qdrant_path=qdrant_path,
+        qdrant_host=qdrant_host,
+        qdrant_port=qdrant_port,
+        collection_name=collection,
+        embedding_model=embedding_model,
+        chat_model=chat_model,
+        visual_description_model=visual_model,
+        mineru_output_root=mineru_output_root,
+        visual_description_root=visual_description_root,
+        phase12_contract_root=phase12_contract_root,
     )
-    return ThesisRAGPipeline(config=config)
-
-
-def _format_source_title(metadata: dict[str, Any]) -> str:
-    """Build a readable source title with disambiguation for generic names."""
-    title = str(metadata.get("title") or "Unknown")
-    work_title = str(metadata.get("work_title") or "")
-    document_type = str(metadata.get("document_type") or "")
-
-    generic_titles = {"manuscript", "paper", "readme", "slides", "published", "unknown"}
-    normalized_title = title.strip().lower()
-    if work_title and normalized_title in generic_titles:
-        title = f"{work_title} ({document_type})" if document_type else work_title
-
-    return title
-
-
-def _format_sources_markdown(sources: list[dict[str, Any]]) -> str:
-    """Format retrieved sources in a readable markdown block."""
-    if not sources:
-        return "No sources."
-
-    lines = ["### Retrieved Sources", ""]
-    for rank, source in enumerate(sources, start=1):
-        metadata = source["metadata"]
-        title = _format_source_title(metadata)
-        filename = str(metadata.get("filename") or "")
-        source_path = str(metadata.get("source_path") or "")
-        document_id = str(metadata.get("document_id") or "Unknown")
-        short_id = document_id[:8] if len(document_id) >= 8 else document_id
-        page_number = metadata.get("page_number", "Unknown")
-        score = float(source["score"])
-
-        lines.append(f"**[{rank}] {title}**")
-        lines.append(f"- Score: `{score:.3f}` | Page: `{page_number}` | Doc: `{short_id}`")
-        if filename:
-            lines.append(f"- File: `{filename}`")
-        if source_path:
-            lines.append(f"- Path: `{source_path}`")
-        lines.append("")
-
-    return "\n".join(lines).strip()
 
 
 def setup_collection_ui(
@@ -107,6 +70,7 @@ def setup_collection_ui(
     visual_model: str,
     mineru_output_root: str,
     visual_description_root: str,
+    phase12_contract_root: str,
 ) -> str:
     """Handle collection setup action from the UI."""
     try:
@@ -120,6 +84,7 @@ def setup_collection_ui(
             visual_model,
             mineru_output_root,
             visual_description_root,
+            phase12_contract_root,
         )
         created = pipeline.setup_collection()
         if created:
@@ -145,6 +110,7 @@ def ingest_pdf_ui(
     visual_model: str,
     mineru_output_root: str,
     visual_description_root: str,
+    phase12_contract_root: str,
 ) -> str:
     """Handle single-PDF ingestion action from the UI."""
     try:
@@ -162,6 +128,7 @@ def ingest_pdf_ui(
             visual_model,
             mineru_output_root,
             visual_description_root,
+            phase12_contract_root,
         )
         pipeline.setup_collection()
         count = pipeline.ingest_pdf(
@@ -191,6 +158,7 @@ def ingest_dir_ui(
     visual_model: str,
     mineru_output_root: str,
     visual_description_root: str,
+    phase12_contract_root: str,
 ) -> str:
     """Handle directory ingestion action from the UI."""
     try:
@@ -208,6 +176,7 @@ def ingest_dir_ui(
             visual_model,
             mineru_output_root,
             visual_description_root,
+            phase12_contract_root,
         )
         pipeline.setup_collection()
         file_count, chunk_count = pipeline.ingest_directory(
@@ -238,6 +207,7 @@ def query_ui(
     visual_model: str,
     mineru_output_root: str,
     visual_description_root: str,
+    phase12_contract_root: str,
 ) -> tuple[str, str]:
     """Handle question answering action from the UI."""
     try:
@@ -255,6 +225,7 @@ def query_ui(
             visual_model,
             mineru_output_root,
             visual_description_root,
+            phase12_contract_root,
         )
 
         filters: dict[str, Any] = {}
@@ -275,7 +246,7 @@ def query_ui(
             top_k=_to_int(top_k, 5),
         )
 
-        sources = _format_sources_markdown(result["sources"])
+        sources = format_sources_markdown(result["sources"])
         return result["answer"], sources
     except Exception as exc:
         return f"Error: {exc}", ""
@@ -295,19 +266,25 @@ def build_demo() -> gr.Blocks:
                     value="./storage/vectorstore/qdrant",
                     info="Leave empty to use host/port mode.",
                 )
-                qdrant_host = gr.Textbox(label="Qdrant Host", value="localhost")
-                qdrant_port = gr.Number(label="Qdrant Port", value=6333, precision=0)
-                collection = gr.Textbox(label="Collection", value="thesis_chunks_v2")
-                embedding_model = gr.Textbox(label="Embedding Model", value="text-embedding-3-small")
-                chat_model = gr.Textbox(label="Chat Model", value="gpt-4o-mini")
-                visual_model = gr.Textbox(label="Visual Description Model", value="gpt-4o-mini")
+                qdrant_host = gr.Textbox(label="Qdrant Host", value=DEFAULT_CONFIG.qdrant_host)
+                qdrant_port = gr.Number(label="Qdrant Port", value=DEFAULT_CONFIG.qdrant_port, precision=0)
+                collection = gr.Textbox(label="Collection", value=DEFAULT_CONFIG.collection_name)
+                embedding_model = gr.Textbox(label="Embedding Model", value=DEFAULT_CONFIG.embedding_model)
+                chat_model = gr.Textbox(label="Chat Model", value=DEFAULT_CONFIG.chat_model)
+                visual_model = gr.Textbox(
+                    label="Visual Description Model", value=DEFAULT_CONFIG.visual_description_model
+                )
                 mineru_output_root = gr.Textbox(
                     label="MinerU Output Root",
-                    value="./data/interim/mineru_out",
+                    value=DEFAULT_CONFIG.mineru_output_root,
                 )
                 visual_description_root = gr.Textbox(
                     label="Visual Description Cache Root",
-                    value="./data/processed/visual_descriptions",
+                    value=DEFAULT_CONFIG.visual_description_root,
+                )
+                phase12_contract_root = gr.Textbox(
+                    label="Phase1->Phase2 Contract Root",
+                    value=DEFAULT_CONFIG.phase12_contract_root,
                 )
 
                 setup_button = gr.Button("Setup Collection", variant="primary")
@@ -386,6 +363,7 @@ def build_demo() -> gr.Blocks:
                 visual_model,
                 mineru_output_root,
                 visual_description_root,
+                phase12_contract_root,
             ],
             outputs=[setup_status],
         )
@@ -408,6 +386,7 @@ def build_demo() -> gr.Blocks:
                 visual_model,
                 mineru_output_root,
                 visual_description_root,
+                phase12_contract_root,
             ],
             outputs=[ingest_pdf_status],
         )
@@ -429,6 +408,7 @@ def build_demo() -> gr.Blocks:
                 visual_model,
                 mineru_output_root,
                 visual_description_root,
+                phase12_contract_root,
             ],
             outputs=[ingest_dir_status],
         )
@@ -451,6 +431,7 @@ def build_demo() -> gr.Blocks:
                 visual_model,
                 mineru_output_root,
                 visual_description_root,
+                phase12_contract_root,
             ],
             outputs=[answer_output, sources_output],
         )

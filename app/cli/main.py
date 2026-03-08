@@ -3,9 +3,14 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Sequence
 
 from src.utils.config import RAGConfig
+from src.utils.pipeline_factory import build_pipeline
+from src.utils.source_formatting import format_source_label
 
 if TYPE_CHECKING:
     from src.pipelines.thesis_rag_pipeline import ThesisRAGPipeline
+
+
+DEFAULT_CONFIG = RAGConfig()
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -15,14 +20,15 @@ def build_parser() -> argparse.ArgumentParser:
         "--qdrant-path",
         help="Use embedded local Qdrant storage path instead of host/port",
     )
-    parser.add_argument("--qdrant-host", default="localhost")
-    parser.add_argument("--qdrant-port", type=int, default=6333)
-    parser.add_argument("--collection", default="thesis_chunks_v2")
-    parser.add_argument("--embedding-model", default="text-embedding-3-small")
-    parser.add_argument("--chat-model", default="gpt-4o-mini")
-    parser.add_argument("--visual-model", default="gpt-4o-mini")
-    parser.add_argument("--mineru-output-root", default="data/interim/mineru_out")
-    parser.add_argument("--visual-description-root", default="data/processed/visual_descriptions")
+    parser.add_argument("--qdrant-host", default=DEFAULT_CONFIG.qdrant_host)
+    parser.add_argument("--qdrant-port", type=int, default=DEFAULT_CONFIG.qdrant_port)
+    parser.add_argument("--collection", default=DEFAULT_CONFIG.collection_name)
+    parser.add_argument("--embedding-model", default=DEFAULT_CONFIG.embedding_model)
+    parser.add_argument("--chat-model", default=DEFAULT_CONFIG.chat_model)
+    parser.add_argument("--visual-model", default=DEFAULT_CONFIG.visual_description_model)
+    parser.add_argument("--mineru-output-root", default=DEFAULT_CONFIG.mineru_output_root)
+    parser.add_argument("--visual-description-root", default=DEFAULT_CONFIG.visual_description_root)
+    parser.add_argument("--phase12-contract-root", default=DEFAULT_CONFIG.phase12_contract_root)
 
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -89,9 +95,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def _build_pipeline(args: argparse.Namespace) -> "ThesisRAGPipeline":
     """Create a configured pipeline instance from parsed CLI arguments."""
-    from src.pipelines.thesis_rag_pipeline import ThesisRAGPipeline
-
-    config = RAGConfig(
+    return build_pipeline(
         qdrant_path=args.qdrant_path,
         qdrant_host=args.qdrant_host,
         qdrant_port=args.qdrant_port,
@@ -101,8 +105,8 @@ def _build_pipeline(args: argparse.Namespace) -> "ThesisRAGPipeline":
         visual_description_model=args.visual_model,
         mineru_output_root=args.mineru_output_root,
         visual_description_root=args.visual_description_root,
+        phase12_contract_root=args.phase12_contract_root,
     )
-    return ThesisRAGPipeline(config=config)
 
 
 def _metadata_from_args(args: argparse.Namespace) -> dict[str, Any] | None:
@@ -127,37 +131,6 @@ def _filters_from_args(args: argparse.Namespace) -> dict[str, Any] | None:
     if getattr(args, "author", None):
         filters["author"] = args.author
     return filters or None
-
-
-def _format_source_label(metadata: dict[str, Any]) -> str:
-    """Build a readable source label with disambiguating metadata."""
-    title = str(metadata.get("title") or "Unknown")
-    work_title = str(metadata.get("work_title") or "")
-    document_type = str(metadata.get("document_type") or "")
-    filename = str(metadata.get("filename") or "")
-    source_path = str(metadata.get("source_path") or "")
-    document_id = str(metadata.get("document_id") or "Unknown")
-
-    # For generic titles like "Manuscript", prefer a fuller work title when available.
-    generic_titles = {"manuscript", "paper", "readme", "slides", "published", "unknown"}
-    normalized_title = title.strip().lower()
-    if work_title and normalized_title in generic_titles:
-        if document_type:
-            title = f"{work_title} ({document_type})"
-        else:
-            title = work_title
-
-    short_id = document_id[:8] if len(document_id) >= 8 else document_id
-    extras = [
-        f"path: {source_path}" if source_path else "",
-        f"file: {filename}" if filename else "",
-        f"doc: {short_id}" if short_id else "",
-    ]
-    extras = [extra for extra in extras if extra]
-
-    if extras:
-        return f"{title} | " + " | ".join(extras)
-    return title
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -210,7 +183,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             for source in result["sources"]:
                 metadata = source["metadata"]
                 print(
-                    f"- {_format_source_label(metadata)} (p.{metadata['page_number']}), "
+                    f"- {format_source_label(metadata)} (p.{metadata['page_number']}), "
                     f"score: {source['score']:.3f}"
                 )
             return 0

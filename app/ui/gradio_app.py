@@ -448,7 +448,8 @@ def build_demo() -> gr.Blocks:
 def main() -> None:
     """Launch the Gradio app."""
     demo = build_demo()
-    demo.launch()
+    project_root = Path(__file__).resolve().parents[2]
+    demo.launch(allowed_paths=[str(project_root.resolve())])
 
 
 if __name__ == "__main__":

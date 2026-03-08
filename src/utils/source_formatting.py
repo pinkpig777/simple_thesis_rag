@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Any, Sequence
+from urllib.parse import quote
 
 
 GENERIC_TITLES = {"manuscript", "paper", "readme", "slides", "published", "unknown"}
@@ -41,16 +42,17 @@ def format_source_label(metadata: dict[str, Any]) -> str:
 
 
 def _build_pdf_page_link(source_pdf_path: str, page_number: Any) -> str | None:
-    """Build a local file URI with page anchor for PDF viewers that support it."""
+    """Build a Gradio-served PDF link with page anchor when possible."""
     if not source_pdf_path:
         return None
     if not isinstance(page_number, int) or page_number < 1:
         return None
     try:
-        file_uri = Path(source_pdf_path).resolve().as_uri()
+        resolved_path = str(Path(source_pdf_path).resolve())
     except ValueError:
         return None
-    return f"{file_uri}#page={page_number}"
+    # Use Gradio's file serving route to avoid browser blocking of file:// links.
+    return f"/gradio_api/file={quote(resolved_path, safe='/')}#page={page_number}"
 
 
 def format_sources_markdown(sources: Sequence[dict[str, Any]]) -> str:

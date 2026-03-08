@@ -50,6 +50,11 @@ uv run --env-file .env python main.py \
   query --question "what is household income"
 ```
 
+Answer behavior:
+
+- The generated answer includes inline source tags like `[S1]`, `[S2]`.
+- CLI source list is printed with matching `[S#]` labels.
+
 ## UI Workflow (Gradio)
 
 Launch UI:
@@ -64,6 +69,12 @@ Recommended first-run path:
 2. Click **Setup Collection**.
 3. Ingest one PDF (or ingest directory).
 4. Run queries in the Query tab.
+
+Query tab outputs:
+
+- **Answer**: inline citation tags (`[S#]`) in generated text.
+- **Sources**: ranked evidence cards with page, score, path, and text snippet.
+- **Cited Visual Evidence**: image gallery for cited visual chunks (when available).
 
 ## Default Runtime Settings
 

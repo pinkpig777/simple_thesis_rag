@@ -10,6 +10,7 @@ Local-first RAG system for thesis PDFs with MinerU parsing, OpenAI enrichment, a
 - Builds a typed Phase 1 -> Phase 2 contract object
 - Embeds chunks and stores vectors + metadata in Qdrant
 - Answers questions with retrieval-augmented generation
+- Returns inline citations in answer text using `[S#]` tags
 
 ## Quickstart
 
@@ -62,7 +63,7 @@ Recommended first run:
 1. Configure settings.
 2. Click **Setup Collection**.
 3. Ingest one PDF (or ingest directory).
-4. Run query.
+4. Run query and inspect cited evidence in the Sources and Visual Evidence panels.
 
 ## Core Entrypoints
 

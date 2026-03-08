@@ -6,7 +6,7 @@ import gradio as gr
 from src.pipelines.thesis_rag_pipeline import ThesisRAGPipeline
 from src.utils.config import RAGConfig
 from src.utils.pipeline_factory import build_pipeline
-from src.utils.source_formatting import format_sources_markdown
+from src.utils.source_formatting import collect_cited_image_paths, format_sources_markdown
 
 
 DEFAULT_CONFIG = RAGConfig()
@@ -208,12 +208,12 @@ def query_ui(
     mineru_output_root: str,
     visual_description_root: str,
     phase12_contract_root: str,
-) -> tuple[str, str]:
+) -> tuple[str, str, list[str]]:
     """Handle question answering action from the UI."""
     try:
         user_question = question.strip()
         if not user_question:
-            return "Please enter a question.", ""
+            return "Please enter a question.", "", []
 
         pipeline = _build_pipeline(
             qdrant_path,
@@ -247,9 +247,10 @@ def query_ui(
         )
 
         sources = format_sources_markdown(result["sources"])
-        return result["answer"], sources
+        cited_images = collect_cited_image_paths(result["sources"])
+        return result["answer"], sources, cited_images
     except Exception as exc:
-        return f"Error: {exc}", ""
+        return f"Error: {exc}", "", []
 
 
 def build_demo() -> gr.Blocks:
@@ -350,6 +351,11 @@ def build_demo() -> gr.Blocks:
                     query_button = gr.Button("Ask", variant="primary")
                     answer_output = gr.Markdown(label="Answer")
                     sources_output = gr.Markdown(label="Sources")
+                    cited_images_output = gr.Gallery(
+                        label="Cited Visual Evidence",
+                        columns=4,
+                        height="auto",
+                    )
 
         setup_button.click(
             setup_collection_ui,
@@ -433,7 +439,7 @@ def build_demo() -> gr.Blocks:
                 visual_description_root,
                 phase12_contract_root,
             ],
-            outputs=[answer_output, sources_output],
+            outputs=[answer_output, sources_output, cited_images_output],
         )
 
     return demo

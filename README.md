@@ -11,6 +11,7 @@ Local-first RAG system for thesis PDFs with MinerU parsing, OpenAI enrichment, a
 - Embeds chunks and stores vectors + metadata in Qdrant
 - Answers questions with retrieval-augmented generation
 - Returns inline citations in answer text using `[S#]` tags
+- Validates citation tags against retrieved source count before returning answer
 
 ## Quickstart
 

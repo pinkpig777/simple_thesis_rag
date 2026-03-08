@@ -54,6 +54,7 @@ Answer behavior:
 
 - The generated answer includes inline source tags like `[S1]`, `[S2]`.
 - CLI source list is printed with matching `[S#]` labels.
+- Citation guardrail: answers are rejected if they include source tags outside the retrieved range (for example `[S9]` when only top-5 were provided).
 
 ## UI Workflow (Gradio)
 

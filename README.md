@@ -71,7 +71,7 @@ Recommended first run:
 Notes:
 
 - Visual previews are shown as gallery cards with `[S#]`, type, and page.
-- PDF page links are best-effort (`file://...#page=N`) and depend on your local viewer support.
+- PDF page links are served through Gradio (`/gradio_api/file=...#page=N`) to avoid `file://` blocking.
 - PDF page highlight is not implemented yet (planned next iteration).
 
 ## Core Entrypoints

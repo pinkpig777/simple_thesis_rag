@@ -9,7 +9,9 @@ if TYPE_CHECKING:
 class AnswerGenerator:
     SYSTEM_PROMPT = (
         "You are a helpful research assistant that answers questions based on thesis documents. "
-        "Write a clean answer without inline citations, source labels, or page references. "
+        "Write a clear answer with inline evidence tags. "
+        "Use only source tags in the form [S1], [S2], etc. from the provided context. "
+        "Do not invent source tags. "
         "Preserve mathematical expressions in LaTeX format when they appear in the context or question."
     )
 
@@ -36,19 +38,25 @@ class AnswerGenerator:
         if not context_chunks:
             return "I could not find relevant sources to answer that question."
 
-        context = "\n\n".join(
-            [
-                f"Excerpt {index}:\n{chunk['text']}"
-                for index, chunk in enumerate(context_chunks, start=1)
-            ]
-        )
+        context_blocks: list[str] = []
+        for index, chunk in enumerate(context_chunks, start=1):
+            metadata = chunk.get("metadata") or {}
+            title = str(metadata.get("title") or "Unknown")
+            page_number = metadata.get("page_number", "Unknown")
+            chunk_type = str(chunk.get("chunk_type") or "text")
+            context_blocks.append(
+                f"[S{index}] title={title}; page={page_number}; type={chunk_type}\n{chunk['text']}"
+            )
+        context = "\n\n".join(context_blocks)
 
         prompt = (
-            "Based on the following excerpts from thesis documents, answer the "
-            "question. Do not include citation markers like '(Manuscript, p.5)', "
-            "source names, or page numbers in the answer. Preserve LaTeX math "
-            "notation (e.g., keep $...$ and $$...$$) instead of rewriting equations "
-            "as plain text.\n\n"
+            "Based on the following labeled excerpts from thesis documents, answer the question.\n"
+            "Rules:\n"
+            "- Cite evidence inline using [S#] tags (for example: [S1], [S3]).\n"
+            "- Every factual claim should be supported by at least one [S#] tag.\n"
+            "- Use only source tags that appear in the provided context labels.\n"
+            "- Do not output a references section; citations should remain inline only.\n"
+            "- Preserve LaTeX math notation (keep $...$ and $$...$$).\n\n"
             f"Context:\n{context}\n\nQuestion: {query}\n\nAnswer:"
         )
 

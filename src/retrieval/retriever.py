@@ -23,6 +23,11 @@ class Retriever:
             formatted_results.append(
                 {
                     "score": float(result.score),
+                    "chunk_id": payload.get("chunk_id"),
+                    "chunk_type": payload.get("chunk_type", "text"),
+                    "asset_id": payload.get("asset_id"),
+                    "image_path": payload.get("image_path", ""),
+                    "visual_type": payload.get("visual_type", ""),
                     "text": payload.get("text", ""),
                     "metadata": {
                         "document_id": payload.get("document_id", "Unknown"),
@@ -31,6 +36,7 @@ class Retriever:
                         "document_type": payload.get("document_type", ""),
                         "filename": payload.get("filename", ""),
                         "source_path": payload.get("source_path", ""),
+                        "source_pdf_path": payload.get("source_pdf_path", ""),
                         "author": payload.get("author", "Unknown"),
                         "year": payload.get("year", "Unknown"),
                         "page_number": payload.get("page_number", "Unknown"),

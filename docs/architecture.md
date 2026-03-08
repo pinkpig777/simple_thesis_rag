@@ -36,16 +36,16 @@ Simple Thesis RAG is a local-first RAG pipeline for academic PDFs:
 ## End-to-End Data Flow
 
 ```mermaid
-flowchart LR
-    A[PDF input] --> B[Phase 1 Producer\nMinerU parse + metadata + visual descriptions]
-    B --> C[Phase12Contract object\n(src/contracts/phase1_to_phase2.py)]
-    C --> D[Phase 2 Indexer\ncontract -> qdrant payload chunks]
-    D --> E[OpenAI Embeddings]
-    E --> F[Qdrant collection]
-    G[User query] --> H[Retriever\nembed query + vector search]
+graph LR
+    A["PDF input"] --> B["Phase 1 Producer<br/>MinerU parse + metadata + visual descriptions"]
+    B --> C["Phase12Contract object<br/>src/contracts/phase1_to_phase2.py"]
+    C --> D["Phase 2 Indexer<br/>Contract to Qdrant payload chunks"]
+    D --> E["OpenAI Embeddings"]
+    E --> F["Qdrant collection"]
+    G["User query"] --> H["Retriever<br/>Embed query + vector search"]
     F --> H
-    H --> I[Answer Generator]
-    I --> J[Final answer + sources]
+    H --> I["Answer Generator"]
+    I --> J["Final answer + sources"]
 ```
 
 ## Phase Responsibilities

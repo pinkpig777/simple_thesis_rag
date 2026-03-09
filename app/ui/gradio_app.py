@@ -350,7 +350,7 @@ def build_demo() -> gr.Blocks:
                         author = gr.Textbox(label="Author")
                     query_button = gr.Button("Ask", variant="primary")
                     answer_output = gr.Markdown(label="Answer")
-                    sources_output = gr.Markdown(label="Sources")
+                    sources_output = gr.Markdown(label="Sources", sanitize_html=False)
                     cited_images_output = gr.Gallery(
                         label="Visual Preview Cards (Cited Evidence)",
                         columns=4,

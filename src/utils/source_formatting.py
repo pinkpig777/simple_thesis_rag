@@ -91,7 +91,11 @@ def format_sources_markdown(sources: Sequence[dict[str, Any]]) -> str:
             lines.append(f"- PDF: `{source_pdf_path}`")
             pdf_page_link = _build_pdf_page_link(source_pdf_path, page_number)
             if pdf_page_link:
-                lines.append(f"- PDF page (experimental): [open page {page_number}]({pdf_page_link})")
+                lines.append(
+                    "- PDF page (experimental): "
+                    f"<a href=\"{pdf_page_link}\" target=\"_blank\" rel=\"noopener noreferrer\">"
+                    f"open page {page_number} in new tab</a>"
+                )
         if image_path:
             lines.append(f"- Image: `{image_path}`")
         if preview:

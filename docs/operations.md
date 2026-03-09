@@ -75,6 +75,7 @@ Query tab outputs:
 
 - **Answer**: inline citation tags (`[S#]`) in generated text.
 - **Sources**: ranked evidence cards with page, score, path, text snippet, and experimental PDF page links.
+- PDF evidence links are rendered to open in a new browser tab.
 - **Visual Preview Cards (Cited Evidence)**: gallery cards for image/table/equation chunks (when image files are available).
 - PDF page links are served by Gradio (`/gradio_api/file=...#page=N`) to avoid browser blocking on `file://` URLs.
 - PDF page highlight is not implemented yet; current behavior is deep-link only when viewer supports `#page=N`.

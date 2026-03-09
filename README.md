@@ -72,6 +72,7 @@ Notes:
 
 - Visual previews are shown as gallery cards with `[S#]`, type, and page.
 - PDF page links are served through Gradio (`/gradio_api/file=...#page=N`) to avoid `file://` blocking.
+- PDF evidence links in Sources are configured to open in a new browser tab.
 - PDF page highlight is not implemented yet (planned next iteration).
 
 ## Core Entrypoints

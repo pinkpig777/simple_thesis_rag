@@ -180,10 +180,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             print(result["answer"])
             print("\nSources:")
-            for source in result["sources"]:
+            for index, source in enumerate(result["sources"], start=1):
                 metadata = source["metadata"]
                 print(
-                    f"- {format_source_label(metadata)} (p.{metadata['page_number']}), "
+                    f"- [S{index}] {format_source_label(metadata)} (p.{metadata['page_number']}), "
                     f"score: {source['score']:.3f}"
                 )
             return 0

@@ -50,6 +50,12 @@ uv run --env-file .env python main.py \
   query --question "what is household income"
 ```
 
+Answer behavior:
+
+- The generated answer includes inline source tags like `[S1]`, `[S2]`.
+- CLI source list is printed with matching `[S#]` labels.
+- Citation guardrail: answers are rejected if they include source tags outside the retrieved range (for example `[S9]` when only top-5 were provided).
+
 ## UI Workflow (Gradio)
 
 Launch UI:
@@ -64,6 +70,15 @@ Recommended first-run path:
 2. Click **Setup Collection**.
 3. Ingest one PDF (or ingest directory).
 4. Run queries in the Query tab.
+
+Query tab outputs:
+
+- **Answer**: inline citation tags (`[S#]`) in generated text.
+- **Sources**: ranked evidence cards with page, score, path, text snippet, and experimental PDF page links.
+- PDF evidence links are rendered to open in a new browser tab.
+- **Visual Preview Cards (Cited Evidence)**: gallery cards for image/table/equation chunks (when image files are available).
+- PDF page links are served by Gradio (`/gradio_api/file=...#page=N`) to avoid browser blocking on `file://` URLs.
+- PDF page highlight is not implemented yet; current behavior is deep-link only when viewer supports `#page=N`.
 
 ## Default Runtime Settings
 
